@@ -224,6 +224,8 @@ void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type t
     struct path_class *path = (struct path_class *)context;
     struct iter_argument ia = {0};
     time_t now;
+
+    MUTEX_LOCK(path);
     virt_print(vio, 
         "\n\n******************************************************\n"
             "*                  Memory Tracer Dump                *\n"
@@ -243,11 +245,14 @@ _print:
     virt_print(vio, "\nTotal Used: %u B (%.2f KB)\n", 
         ia.msize, (float)ia.msize/1024);
     virt_print(vio, "Time: %s\n\n", asctime(localtime(&now)));
+    MUTEX_UNLOCK(path);
 }
 
 void mem_tracer_destory(void *context) {
     struct path_class *path = (struct path_class *)context;
+    MUTEX_LOCK(path);
     core_record_destroy(&path->base);
+    MUTEX_UNLOCK(path);
 }
 
 void mem_tracer_init(void *context) {
