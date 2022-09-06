@@ -1,0 +1,10 @@
+{
+    "clangd.arguments": [
+            "--compile-commands-dir=${workspaceFolder}",
+            "--query-driver=/usr/bin/clang*",
+            "--completion-style=bundled",
+            "--clang-tidy",
+            "--clang-tidy-checks=cppcoreguidelines-*,performance-*,bugprone-*,portability-*,modernize-*,google-*",
+            "-j=2"
+    ]
+}
