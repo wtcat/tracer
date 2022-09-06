@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <libunwind.h>
+#include <time.h>
 
 #include "base/list.h"
 #include "base/utils.h"
@@ -168,7 +168,6 @@ void *mem_tracer_alloc(size_t size) {
     void *ptr = malloc(size);
     if (ptr) {
         struct mem_record_node *mrn;
-
         mrn = (struct mem_record_node *)record_node_allocate(&container, 0, mem_container.path_size);
         mrn->rbnode.color = RBT_RED;
         mrn->ptr = ptr;
@@ -202,6 +201,12 @@ void mem_tracer_free(void *ptr) {
 
 void mem_tracer_dump(const struct printer *vio, enum mdump_type type) {
     struct iter_argument ia = {0};
+    time_t now;
+    virt_print(vio, 
+        "\n\n******************************************************\n"
+            "*                  Memory Tracer Dump                *\n"
+            "******************************************************\n"
+    );
     if (type == MEM_SORTED_DUMP) {
         struct path_container *pc = container.user;
         ia.vio = vio;
@@ -213,8 +218,10 @@ void mem_tracer_dump(const struct printer *vio, enum mdump_type type) {
         core_record_visitor(&container, iterator, &ia);
     }
 _print:
-    virt_print(vio, "Memory Used: %u B (%.2f KB)\n\n", 
+    time(&now);
+    virt_print(vio, "Memory Used: %u B (%.2f KB)\n", 
         ia.msize, (float)ia.msize/1024);
+    virt_print(vio, "Time: %s\n\n", asctime(localtime(&now)));
 }
 
 void mem_tracer_destory(void) {

@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include "base/printer.h"
+#include "tracer/backtrace.h"
 #include "tracer/mem_tracer.h"
 
 #define PTR_TABLE_SIZE 50
@@ -57,26 +58,13 @@ TEST_FUN(func_5) {
 
 int main(int argc, char *argv[]) {
     struct printer cout;
-    void *p1, *p2;
-
     printf_printer_init(&cout);
+    backtrace_set_limits(backtrace_get_instance(), 1, 50);
 
-    puts("\n\n**************** TEST-1 *****************\n");
-    p1 = mem_tracer_alloc(12);
-    p2 = mem_tracer_alloc(36);
-    mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);
-    mem_tracer_dump(&cout, MEM_SORTED_DUMP);
-    mem_tracer_free(p1);
-    mem_tracer_free(p2);
-    mem_tracer_destory();
-
-    puts("\n\n**************** TEST-2 *****************\n");
     func_5();
     mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);
-    puts("\n\n");
     mem_tracer_dump(&cout, MEM_SORTED_DUMP);
 
-    puts("\n\n**************** TEST-3 *****************\n");
     TEST_FREE();
     mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);
     mem_tracer_destory();
