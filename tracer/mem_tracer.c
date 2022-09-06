@@ -8,8 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#if !defined(_MSC_VER)
 #include <threads.h>
-
+#endif
 #include "base/list.h"
 #include "base/utils.h"
 #include "base/printer.h"
@@ -17,6 +18,28 @@
 #include "tracer/mem_tracer.h"
 #include "tracer/backtrace.h"
 
+#if !defined(_MSC_VER)
+#define MUTEX_LOCK_DECLARE(name) mtx_t name
+#define MUTEX_INIT(_path) \
+    mtx_init(&(_path)->lock, mtx_plain)
+#define MUTEX_LOCK(_path) \
+    mtx_lock(&(_path)->lock)
+#define MUTEX_UNLOCK(_path) \
+    mtx_unlock(&(_path)->lock)
+#define MUTEX_DEINIT(_path)
+#else
+#include <windows.h>
+#define MUTEX_LOCK_DECLARE(name) HANDLE name
+#define MUTEX_INIT(_path) \
+    (_path)->lock = CreateMutex(NULL, FALSE, NULL)
+#define MUTEX_LOCK(_path) \
+    WaitForSingleObject((_path)->lock, INFINITE)
+#define MUTEX_UNLOCK(_path) \
+    ReleaseMutex((_path)->lock)
+#define MUTEX_DEINIT(_path) \
+    CloseHandle((_path)->lock)
+#endif
+    
 enum node_type {
     IDLE_NODE   = 0,
     MEMB_NODE,
@@ -31,7 +54,7 @@ struct iter_argument {
 struct path_class {
     struct record_class base;
     struct record_tree tree;
-    mtx_t lock;
+    MUTEX_LOCK_DECLARE(lock);
     size_t path_size;
 };
 
@@ -49,14 +72,6 @@ struct mem_record_node {
 };
 
 _Static_assert(sizeof(struct path_class) <= MTRACER_INST_SIZE, "Over size");
-
-#define MUTEX_INIT(_path) \
-    mtx_init(&(_path)->lock, mtx_plain)
-#define MUTEX_LOCK(_path) \
-    mtx_lock(&(_path)->lock)
-#define MUTEX_UNLOCK(_path) \
-    mtx_unlock(&(_path)->lock)
-
 
 static RBTree_Compare_result sum_compare(const RBTree_Node *a,
     const RBTree_Node *b) {
@@ -243,4 +258,10 @@ void mem_tracer_init(void *context) {
     path->tree.compare = sum_compare;
     path->path_size = 512;
     MUTEX_INIT(path);
+}
+
+void mem_tracer_deinit(void* context) {
+    struct path_class* path = (struct path_class*)context;
+    mem_tracer_destory(context);
+    MUTEX_DEINIT(path);
 }

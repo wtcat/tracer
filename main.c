@@ -73,6 +73,6 @@ int main(int argc, char *argv[]) {
 
     TEST_FREE();
     mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
-    mem_tracer_destory(&mtrace_context);
+    mem_tracer_deinit(&mtrace_context);
     return 0;
 }

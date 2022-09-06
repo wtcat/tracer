@@ -27,6 +27,7 @@ void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type t
 void mem_tracer_destory(void *context);
 void mem_tracer_set_path_length(void *context, size_t maxlen);
 void mem_tracer_init(void *context);
+void mem_tracer_deinit(void* context);
 
 #ifdef __cplusplus
 }
