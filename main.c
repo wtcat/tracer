@@ -77,8 +77,8 @@ int main(int argc, char *argv[]) {
     mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);
     puts("\n\n");
     mem_tracer_dump(&cout, MEM_SORTED_DUMP);
-    puts("\n\n");
 
+    puts("\n\n**************** TEST-3 *****************\n");
     TEST_FREE();
     mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);
     mem_tracer_destory();
