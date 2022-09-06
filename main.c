@@ -59,7 +59,11 @@ TEST_FUN(func_5) {
 int main(int argc, char *argv[]) {
     struct printer cout;
     printf_printer_init(&cout);
+#if defined(_MSC_VER)
+    backtrace_set_limits(backtrace_get_instance(), 5, 50);
+#else
     backtrace_set_limits(backtrace_get_instance(), 1, 50);
+#endif
 
     func_5();
     mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);

@@ -34,10 +34,13 @@ endif ()
 # Global compile options
 include_directories(
   ${PROJECT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/include
 )
 add_compile_options(
     $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-rdynamic>
-    -Wall -g -O0 
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-Wall>
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-g>
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-O0>
 )
 set(CMAKE_C_STANDARD   11)
 set(CMAKE_CXX_STANDARD 17)

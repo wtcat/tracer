@@ -5,7 +5,7 @@
 
 #if defined(_WIN32)
 #define SW_IMPL
-#include "win/stackwalkerc.h"
+#include "win/stackwalker.h"
 
 #define BACKTRACE_OPTIONS (SW_OPTIONS_SYMBOL|SW_OPTIONS_SOURCEPOS)
 struct callback_args {
@@ -22,10 +22,10 @@ static void callstack_entry(const sw_callstack_entry* entry, void* userptr) {
     struct callback_args *call = (struct callback_args *)userptr;
     struct backtrace_entry e;
     e.symbol = entry->und_name;
-    e.pc = ip;
+    e.pc = 0;
     e.line = entry->line;
     call->cb->callback(&e, call->arg);
-    printf("\t%s(%d): %s\n", entry->line_filename, entry->line, entry->und_name);
+    //printf("\t%s(%d): %s\n", entry->line_filename, entry->line, entry->und_name);
 }
 
 static void callstack_end(void* userptr) {
@@ -34,9 +34,9 @@ static void callstack_end(void* userptr) {
 }
 
 static sw_callbacks callbacks = {
-    callstack_begin, //callstack_begin
-    callstack_entry, //callstack_entry
-    callstack_end //callstack_end
+    .callstack_begin = callstack_begin,
+    .callstack_entry = callstack_entry,
+    .callstack_end = callstack_end
 };
 
 static void win_backtrace(struct backtrace_class *cls, struct backtrace_callbacks *cb, 
@@ -44,14 +44,14 @@ static void win_backtrace(struct backtrace_class *cls, struct backtrace_callback
     static struct callback_args cb_args;
     sw_context* context;
 
-    context = sw_create_context_capture(BACKTRACE_OPTIONS, &callbacks, NULL);
-    sw_set_callstack_limits(context, cls->start_limit, cls->max_limit);
+    cb_args.cb = cb;
+    cb_args.arg = user;
+    context = sw_create_context_capture(BACKTRACE_OPTIONS, &callbacks, &cb_args);
+    sw_set_callstack_limits(context, cls->min_limit, cls->max_limit);
     if (!context) {
         puts("ERROR: stackwalk init");
         return;
     }
-    cb_args.cb = cb;
-    cb_args.arg = user;
     sw_show_callstack(context, NULL);
     sw_destroy_context(context);
 }
