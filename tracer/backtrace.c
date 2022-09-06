@@ -25,7 +25,6 @@ static void callstack_entry(const sw_callstack_entry* entry, void* userptr) {
     e.pc = 0;
     e.line = entry->line;
     call->cb->callback(&e, call->arg);
-    //printf("\t%s(%d): %s\n", entry->line_filename, entry->line, entry->und_name);
 }
 
 static void callstack_end(void* userptr) {

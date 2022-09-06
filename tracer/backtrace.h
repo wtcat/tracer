@@ -27,7 +27,6 @@ struct backtrace_callbacks {
     void (*begin)(void *user);
     void (*callback)(backtrace_entry_t *entry, void *user);
     void (*end)(void *user);
-    int skip_level;
 }; 
 
 struct backtrace_class {

@@ -15,17 +15,18 @@
 #define TEST_MALLOC(size) \
     do {\
         assert(ptr_index < PTR_TABLE_SIZE); \
-        ptr_table[ptr_index++] = mem_tracer_alloc(size); \
+        ptr_table[ptr_index++] = mem_tracer_alloc(&mtrace_context, size); \
     } while (0)
 
 #define TEST_FREE() \
     do { \
         for (int i = 0; i < ptr_index; i++) {\
-            mem_tracer_free(ptr_table[i]); \
+            mem_tracer_free(&mtrace_context, ptr_table[i]); \
             ptr_table[i] = NULL; \
         } \
     } while (0)
 
+static MTRACER_DEFINE(mtrace_context);
 static void *ptr_table[40];
 static int ptr_index;
 
@@ -59,6 +60,7 @@ TEST_FUN(func_5) {
 int main(int argc, char *argv[]) {
     struct printer cout;
     printf_printer_init(&cout);
+    mem_tracer_init(&mtrace_context);
 #if defined(_MSC_VER)
     backtrace_set_limits(backtrace_get_instance(), 5, 50);
 #else
@@ -66,11 +68,11 @@ int main(int argc, char *argv[]) {
 #endif
 
     func_5();
-    mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);
-    mem_tracer_dump(&cout, MEM_SORTED_DUMP);
+    mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
+    mem_tracer_dump(&mtrace_context, &cout, MEM_SORTED_DUMP);
 
     TEST_FREE();
-    mem_tracer_dump(&cout, MEM_SEQUEUE_DUMP);
-    mem_tracer_destory();
+    mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
+    mem_tracer_destory(&mtrace_context);
     return 0;
 }

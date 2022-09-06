@@ -63,6 +63,7 @@ target_link_libraries(${TARGET_NAME}
     -Wl,--end-group
     unwind
     unwind-x86_64
+    pthread
 )
 else ()
 target_link_libraries(${TARGET_NAME} 
