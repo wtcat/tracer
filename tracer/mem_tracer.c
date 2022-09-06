@@ -26,7 +26,8 @@
     mtx_lock(&(_path)->lock)
 #define MUTEX_UNLOCK(_path) \
     mtx_unlock(&(_path)->lock)
-#define MUTEX_DEINIT(_path)
+#define MUTEX_DEINIT(_path) \
+    (void) (_path)
 #else
 #include <windows.h>
 #define MUTEX_LOCK_DECLARE(name) HANDLE name
@@ -157,9 +158,11 @@ static bool sorted_iterator(const RBTree_Node *node, RBTree_Direction dir, void 
         hnode->base.path, hnode->ptr, hnode->size);
     list_for_each(pos, &hnode->head) {
         struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);
-        sum += hnode->size;
+        sum += p->size;
         virt_print(vio, "\tMemory: 0x%p Size: %ld\n", p->ptr, p->size);
     }
+    virt_print(vio, " \tMemory Used: %u B (%.2f KB)\n",  
+        sum, (float)sum / 1024);
     ia->msize += sum;
     return false;
 }
@@ -237,7 +240,7 @@ void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type t
     }
 _print:
     time(&now);
-    virt_print(vio, "Memory Used: %u B (%.2f KB)\n", 
+    virt_print(vio, "\nTotal Used: %u B (%.2f KB)\n", 
         ia.msize, (float)ia.msize/1024);
     virt_print(vio, "Time: %s\n\n", asctime(localtime(&now)));
 }
