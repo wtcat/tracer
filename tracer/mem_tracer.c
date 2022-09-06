@@ -11,7 +11,6 @@
 #include "base/list.h"
 #include "base/utils.h"
 #include "base/printer.h"
-
 #include "tracer/tracer_core.h"
 #include "tracer/mem_tracer.h"
 
@@ -103,12 +102,13 @@ static void backtrace(struct backtrace_callbacks *cb, void *user) {
 }
 
 static void backtrace_begin(void *user) {
-    puts("Backtrace Begin:\n");
+    // puts("Backtrace Begin:\n");
 }
 
 static void backtrace_entry(struct backtrace_entry *entry, void *user) {
     struct record_class *rc = (struct record_class *)user;
     struct mem_record_node *node = (struct mem_record_node *)rc->pnode;
+    node->line = entry->line;
     mem_path_append(&node->base, entry->symbol);
 }
 

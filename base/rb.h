@@ -6,8 +6,8 @@
  *  http://www.rtems.org/license/LICENSE.
  */
 
-#ifndef _RTEMS_SCORE_RBTREE_H
-#define _RTEMS_SCORE_RBTREE_H
+#ifndef BASE_RBTREE_H_
+#define BASE_RBTREE_H_
 
 #include <stdbool.h>
 #include <stddef.h>

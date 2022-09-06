@@ -1,8 +1,8 @@
 /*
  * Copyrigth wtcat 2022
  */
-#ifndef CONTAINER_LIST_H_
-#define CONTAINER_LIST_H_
+#ifndef BASE_LIST_H_
+#define BASE_LIST_H_
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -894,4 +894,4 @@ static inline void hlist_move_list(struct hlist_head *old,
 #ifdef __cplusplus
 }
 #endif
-#endif /* CONTAINER_LIST_H_ */
+#endif /* BASE_LIST_H_ */

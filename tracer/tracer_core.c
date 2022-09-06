@@ -1,7 +1,6 @@
 /*
  * Copyright 2022 wtcat
  */
-
 #include <errno.h>
 #include <assert.h>
 #include <stddef.h>
@@ -12,7 +11,6 @@
 #include "base/list.h"
 #include "base/rb.h"
 #include "base/utils.h"
-
 #include "tracer/tracer_core.h"
 
 static uint32_t chksum_generate(uint32_t crc, const uint8_t *data, size_t len) {

@@ -5,7 +5,9 @@
  *  found in the file LICENSE in this distribution or at
  *  http://www.rtems.org/license/LICENSE.
  */
-
+/*
+ *  Copyright (c) 2022 wtcat.
+ */
 #include <stdbool.h>
 #include "base/rb.h"
 
