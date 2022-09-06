@@ -42,23 +42,6 @@ struct record_class {
     void *user;
 };
 
-#ifndef backtrace_entry_t
-struct backtrace_entry {
-    const char *symbol;
-    const char *filename;
-    unsigned long pc;
-    int line;
-};
-typedef struct backtrace_entry backtrace_entry_t;
-#endif /* backtrace_entry_t */
-
-struct backtrace_callbacks {
-    void (*begin)(void *user);
-    void (*callback)(backtrace_entry_t *entry, void *user);
-    void (*end)(void *user);
-    int skip_level;
-}; 
-
 int mem_path_append(struct record_node *node, const char *str);
 struct record_node *record_node_allocate(struct record_class *rc, 
     size_t symsize, size_t btsize);

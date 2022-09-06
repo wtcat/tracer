@@ -1,12 +1,10 @@
 /*
  * Copyright 2022 wtcat
  */
-#include <stdbool.h>
 #include <stdio.h>
 #include <assert.h>
 
 #include "base/printer.h"
-#include "tracer/tracer_core.h"
 #include "tracer/mem_tracer.h"
 
 #define PTR_TABLE_SIZE 50

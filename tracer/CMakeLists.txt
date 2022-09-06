@@ -1,4 +1,3 @@
-static_library(tracer)
 
 target_sources(tracer
     PRIVATE

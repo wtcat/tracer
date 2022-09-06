@@ -19,6 +19,7 @@ void *mem_tracer_alloc(size_t size);
 void mem_tracer_free(void *ptr);
 void mem_tracer_dump(const struct printer *vio, enum mdump_type type);
 void mem_tracer_destory(void);
+void mem_tracer_set_path_length(size_t maxlen);
 
 #ifdef __cplusplus
 }

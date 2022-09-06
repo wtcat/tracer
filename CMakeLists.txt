@@ -6,7 +6,6 @@ enable_language(C CXX)
 #Extensions
 include(cmake/extensions.cmake)
 
-
 if (POLICY CMP0076)
     cmake_policy(SET CMP0076 NEW)
 endif(POLICY CMP0076)
@@ -48,11 +47,13 @@ add_executable(${TARGET_NAME}
     main.c
 )
 
+static_library(tracer)
 add_subdirectory(base)
 add_subdirectory(tracer)
 
 # Link target
 collect_link_libraries(LIBS ${TARGET_NAME})
+if (NOT WINDOWS)
 target_link_libraries(${TARGET_NAME} 
     -Wl,--start-group
     ${LIBS}
@@ -60,8 +61,14 @@ target_link_libraries(${TARGET_NAME}
     unwind
     unwind-x86_64
 )
+else ()
+target_link_libraries(${TARGET_NAME} 
+    ${LIBS}
+)
+endif ()
 
 # User target
+if (NOT WINDOWS)
 add_custom_target(lldb
     COMMAND
     lldb ${TARGET_NAME}
@@ -70,4 +77,4 @@ add_custom_target(gdb
     COMMAND
     gdb ${TARGET_NAME}
 )
-
+endif ()

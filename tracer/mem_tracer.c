@@ -13,6 +13,7 @@
 #include "base/printer.h"
 #include "tracer/tracer_core.h"
 #include "tracer/mem_tracer.h"
+#include "tracer/backtrace.h"
 
 enum node_type {
     IDLE_NODE   = 0,
@@ -20,8 +21,14 @@ enum node_type {
     HEAD_NODE
 };
 
+struct iter_argument {
+    const struct printer *vio;
+    size_t msize;
+};
+
 struct path_container {
     struct record_tree tree;
+    size_t path_size;
 };
 
 struct mem_record_node {
@@ -79,28 +86,6 @@ static int mem_instert(struct path_container *pc, struct mem_record_node *node) 
     return 0;
 }
 
-static void backtrace(struct backtrace_callbacks *cb, void *user) {
-    struct backtrace_entry entry;
-    unw_cursor_t cursor;
-    unw_context_t uc;
-    unw_word_t ip, offp;
-    char name[256];
-
-    unw_getcontext(&uc);
-    unw_init_local(&cursor, &uc);
-    cb->begin(user);
-    while (unw_step(&cursor) > 0) {
-        name[0] = '\0';
-        unw_get_proc_name(&cursor, name, sizeof(name), &offp);
-        unw_get_reg(&cursor, UNW_REG_IP, &ip);
-        entry.symbol = name;
-        entry.pc = ip;
-        entry.line = -1;
-        cb->callback(&entry, user);
-    }
-    cb->end(user);
-}
-
 static void backtrace_begin(void *user) {
     // puts("Backtrace Begin:\n");
 }
@@ -120,28 +105,35 @@ static void backtrace_end(void *user) {
 }
 
 static bool iterator(struct record_node *n, void *u) {
-    const struct printer *vio = (const struct printer *)u;
+    struct iter_argument *ia = (struct iter_argument *)u;
+    const struct printer *vio = ia->vio;
     struct mem_record_node *mrn = CONTAINER_OF(n, struct mem_record_node, base);
+    ia->msize += mrn->size;
     virt_print(vio, "CallPath: %s\n\tMemory: 0x%p Size: %ld\n", 
         mrn->base.path, mrn->ptr, mrn->size);
     return true;
 }
 
 static bool sorted_iterator(const RBTree_Node *node, RBTree_Direction dir, void *arg) {
-    const struct printer *vio = (const struct printer *)arg;
+    struct iter_argument *ia = (struct iter_argument *)arg;
+    const struct printer *vio = ia->vio;
+    size_t sum = 0;
     (void) dir;
     struct list_head *pos;
     struct mem_record_node *hnode = CONTAINER_OF(node, struct mem_record_node, rbnode);
+    sum += hnode->size;
     virt_print(vio, "CallPath: %s\n\tMemory: 0x%p Size: %ld\n", 
         hnode->base.path, hnode->ptr, hnode->size);
     list_for_each(pos, &hnode->head) {
         struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);
+        sum += hnode->size;
         virt_print(vio, "\tMemory: 0x%p Size: %ld\n", p->ptr, p->size);
     }
+    ia->msize += sum;
     return false;
 }
 
-static struct backtrace_callbacks bt_cbs = {
+static struct backtrace_callbacks callbacks = {
     .begin = backtrace_begin,
     .callback = backtrace_entry,
     .end = backtrace_end,
@@ -152,7 +144,8 @@ static struct path_container mem_container = {
     .tree = {
         .root = RBTREE_INITIALIZER_EMPTY(0),
         .compare = sum_compare
-    },    
+    },
+    .path_size = 512 
 };
 
 static struct record_class container = {
@@ -167,16 +160,21 @@ static struct record_class container = {
     .user = &mem_container
 };
 
+void mem_tracer_set_path_length(size_t maxlen) {
+    mem_container.path_size = maxlen;
+}
+
 void *mem_tracer_alloc(size_t size) {
     void *ptr = malloc(size);
     if (ptr) {
         struct mem_record_node *mrn;
-        mrn = (struct mem_record_node *)record_node_allocate(&container, 0, 512);
+
+        mrn = (struct mem_record_node *)record_node_allocate(&container, 0, mem_container.path_size);
         mrn->rbnode.color = RBT_RED;
         mrn->ptr = ptr;
         mrn->size = size;
         container.pnode = mrn;
-        backtrace(&bt_cbs, &container);
+        do_backtrace(backtrace_get_instance(), &callbacks, &container);
     }
     return ptr;
 }
@@ -203,18 +201,20 @@ void mem_tracer_free(void *ptr) {
 }
 
 void mem_tracer_dump(const struct printer *vio, enum mdump_type type) {
-    switch (type) {
-    case MEM_SORTED_DUMP: {
+    struct iter_argument ia = {0};
+    if (type == MEM_SORTED_DUMP) {
         struct path_container *pc = container.user;
-        rbtree_iterate(&pc->tree.root, RBT_RIGHT, sorted_iterator, (void *)vio);
-        }
-        break;
-    case MEM_SEQUEUE_DUMP:
-        core_record_visitor(&container, iterator, (void *)vio);
-        break;
-    default:
-        break;
+        ia.vio = vio;
+        rbtree_iterate(&pc->tree.root, RBT_RIGHT, sorted_iterator, &ia);
+        goto _print;
     }
+    if (type == MEM_SEQUEUE_DUMP) {
+        ia.vio = vio;
+        core_record_visitor(&container, iterator, &ia);
+    }
+_print:
+    virt_print(vio, "Memory Used: %u B (%.2f KB)\n\n", 
+        ia.msize, (float)ia.msize/1024);
 }
 
 void mem_tracer_destory(void) {
