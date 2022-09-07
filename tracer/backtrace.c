@@ -55,13 +55,6 @@ static void win_backtrace(struct backtrace_class *cls, struct backtrace_callback
     sw_destroy_context(context);
 }
 
-static struct backtrace_class _win_backtrace_class_inst = {
-    .backtrace = win_backtrace,
-    .context = NULL,
-    .min_limit = 5,
-    .max_limit = BACKTRACE_MAX_LIMIT
-};
-
 #else //!_WIN32
 #include <libunwind.h>
 
@@ -97,19 +90,18 @@ static void unix_backtrace(struct backtrace_class *cls, struct backtrace_callbac
     }
     cb->end(user);
 }
-
-static struct backtrace_class _unix_backtrace_class_inst = {
-    .backtrace = unix_backtrace,
-    .context = NULL,
-    .min_limit = 1,
-    .max_limit = BACKTRACE_MAX_LIMIT
-};
 #endif //_WIN32
 
-struct backtrace_class *backtrace_get_instance(void) {
+void backtrace_init(struct backtrace_class *cls, void *context) {
 #if defined(_WIN32)
-    return &_win_backtrace_class_inst;
+    cls->backtrace = win_backtrace;
+    cls->context = context;
+    cls->min_limit = 5;
+    cls->max_limit = BACKTRACE_MAX_LIMIT;
 #else
-    return &_unix_backtrace_class_inst;
+    cls->backtrace = unix_backtrace;
+    cls->context = context;
+    cls->min_limit = 1;
+    cls->max_limit = BACKTRACE_MAX_LIMIT;
 #endif
 }

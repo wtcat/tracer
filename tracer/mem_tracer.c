@@ -56,6 +56,7 @@ struct iter_argument {
 struct path_class {
     struct record_class base;
     struct record_tree tree;
+    struct backtrace_class tracer;
     MUTEX_LOCK_DECLARE(lock);
     size_t path_size;
 };
@@ -217,7 +218,7 @@ void *mem_tracer_alloc(void *context, size_t size) {
         mrn->ptr = ptr;
         mrn->size = size;
         path->base.pnode = mrn;
-        do_backtrace(backtrace_get_instance(), &callbacks, path);
+        do_backtrace(&path->tracer, &callbacks, path);
     }
     MUTEX_UNLOCK(path);
     return ptr;
@@ -301,11 +302,21 @@ void mem_tracer_init(void *context) {
     path->base.node_size = sizeof(struct mem_record_node);
     path->tree.compare = sum_compare;
     path->path_size = 512;
+    backtrace_init(&path->tracer, NULL);
     MUTEX_INIT(path);
 }
 
 void mem_tracer_deinit(void* context) {
     struct path_class* path = (struct path_class*)context;
+    MUTEX_LOCK(path);
     mem_tracer_destory(context);
+    MUTEX_UNLOCK(path);
     MUTEX_DEINIT(path);
+}
+
+void mem_tracer_set_path_limits(void *context, int min, int max) {
+    struct path_class* path = (struct path_class*)context;
+    MUTEX_LOCK(path);
+    backtrace_set_limits(&path->tracer, min, max);
+    MUTEX_UNLOCK(path);
 }

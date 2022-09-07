@@ -79,6 +79,7 @@ set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
 
 install(FILES 
     base/allocator.h
+    base/printer.h
     tracer/mem_tracer.h
     DESTINATION _install/include)
 

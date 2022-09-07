@@ -37,8 +37,6 @@ struct backtrace_class {
     int max_limit;
 };
 
-struct backtrace_class *backtrace_get_instance(void);
-
 static inline void do_backtrace(struct backtrace_class *path, 
     struct backtrace_callbacks *cb, void *user) {
     path->backtrace(path, cb, user);
@@ -56,6 +54,8 @@ static inline void backtrace_set_limits(struct backtrace_class *cls,
     cls->min_limit = min_limit;
     cls->max_limit = max_limit;
 }
+
+void backtrace_init(struct backtrace_class *cls, void *context);
 
 #ifdef __cplusplus
 }
