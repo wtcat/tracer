@@ -308,9 +308,7 @@ void mem_tracer_init(void *context) {
 
 void mem_tracer_deinit(void* context) {
     struct path_class* path = (struct path_class*)context;
-    MUTEX_LOCK(path);
     mem_tracer_destory(context);
-    MUTEX_UNLOCK(path);
     MUTEX_DEINIT(path);
 }
 
