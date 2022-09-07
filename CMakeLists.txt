@@ -71,6 +71,21 @@ target_link_libraries(${TARGET_NAME}
 )
 endif ()
 
+# Install
+set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
+
+install(FILES 
+    base/allocator.h
+    tracer/mem_tracer.h
+    DESTINATION _install/include)
+
+install(TARGETS tracer
+    # EXPORT MyMathTargets
+    LIBRARY DESTINATION _install
+    ARCHIVE DESTINATION _install
+    RUNTIME DESTINATION _install
+)
+
 # User target
 if (NOT WINDOWS)
 add_custom_target(lldb
