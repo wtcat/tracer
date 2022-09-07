@@ -7,7 +7,7 @@
 #define SW_IMPL
 #include "win/stackwalker.h"
 
-#define BACKTRACE_OPTIONS (SW_OPTIONS_SYMBOL|SW_OPTIONS_SOURCEPOS)
+#define BACKTRACE_OPTIONS SW_OPTIONS_SYMBOL //(SW_OPTIONS_SYMBOL|SW_OPTIONS_SOURCEPOS)
 struct callback_args {
     struct backtrace_callbacks *cb;
     void *arg;

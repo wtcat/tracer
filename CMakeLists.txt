@@ -81,7 +81,7 @@ install(FILES
     base/allocator.h
     base/printer.h
     tracer/mem_tracer.h
-    DESTINATION _install/include)
+    DESTINATION _install/include/tracer)
 
 install(TARGETS tracer
     # EXPORT MyMathTargets
