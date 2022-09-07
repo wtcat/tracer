@@ -2,9 +2,11 @@
  * Copyright 2022 wtcat
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
 #include "base/printer.h"
+#include "base/allocator.h"
 #include "tracer/backtrace.h"
 #include "tracer/mem_tracer.h"
 
@@ -29,6 +31,31 @@
 static MTRACER_DEFINE(mtrace_context);
 static void *ptr_table[40];
 static int ptr_index;
+size_t used_size;
+
+static void *mem_alloc(struct mem_allocator *m, size_t size) {
+    (void) m;
+    size_t *ptr = malloc(size + sizeof(size));
+    if (ptr) {
+        used_size += size;
+        *ptr = size;
+        return ptr + 1;
+    }
+    return NULL;
+}
+
+static void mem_free(struct mem_allocator *m, void *ptr) {
+    (void) m;
+    size_t *p = (size_t *)ptr;
+    p--;
+    used_size -= *p;
+    free(p);
+}
+
+static struct mem_allocator allocator = {
+    .allocate = mem_alloc,
+    .free = mem_free
+};
 
 TEST_FUN(func_1) {
     TEST_MALLOC(16);
@@ -61,6 +88,7 @@ int main(int argc, char *argv[]) {
     struct printer cout;
     printf_printer_init(&cout);
     mem_tracer_init(&mtrace_context);
+    mem_tracer_set_allocator(&mtrace_context, &allocator);
 #if defined(_MSC_VER)
     backtrace_set_limits(backtrace_get_instance(), 5, 50);
 #else
@@ -71,8 +99,12 @@ int main(int argc, char *argv[]) {
     mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
     mem_tracer_dump(&mtrace_context, &cout, MEM_SORTED_DUMP);
 
+    printf("**Memory Monitor-1: %lu\n", used_size);
     TEST_FREE();
+    printf("**Memory Monitor-2: %lu\n", used_size);
     mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
+    printf("**Memory Monitor-3: %lu\n", used_size);
     mem_tracer_deinit(&mtrace_context);
+    printf("**Memory Monitor-4: %lu\n", used_size);
     return 0;
 }

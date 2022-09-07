@@ -10,12 +10,11 @@
 
 #include "base/rb.h"
 #include "base/list.h"
+#include "base/allocator.h"
 
 #ifdef __cplusplus
 extern "C"{
 #endif
-
-struct backtrace_class;
 
 struct record_tree {
     RBTree_Control root;
@@ -35,8 +34,7 @@ struct record_node {
 struct record_class {
     struct record_tree tree;
     struct list_head head;
-    void *(*alloc)(size_t size);
-    void (*free)(void *ptr);
+    struct mem_allocator *allocator;
     size_t node_size;
     void *pnode; /* for record_node */
     void *user;

@@ -37,7 +37,8 @@ static void record_chksum_generate(struct record_node *rn) {
 struct record_node *record_node_allocate(struct record_class *rc, 
     size_t symsize, size_t btsize) {
     assert(rc->node_size >= sizeof(struct record_node));
-    struct record_node *rn = rc->alloc(rc->node_size + symsize + btsize + 2);
+    struct record_node *rn = memory_allocate(rc->allocator, 
+        rc->node_size + symsize + btsize + 2);
     if (rn != NULL) {
         memset(rn, 0, rc->node_size);
         char *buf = (char *)rn + rc->node_size;
@@ -85,7 +86,7 @@ int core_record_del(struct record_class *rc, struct record_node *node) {
         return -EINVAL;
     rbtree_extract(&rc->tree.root, &node->node);
     list_del(&node->link);
-    rc->free(node);
+    memory_free(rc->allocator, node);
     return 0;
 }
 
@@ -94,7 +95,7 @@ void core_record_destroy(struct record_class *rc) {
     list_for_each_safe(pos, next, &rc->head) {
         struct record_node *rn = CONTAINER_OF(pos, struct record_node, link);
         list_del(pos);
-        rc->free(rn);
+        memory_free(rc->allocator, rn);
     }
 }
 

@@ -1,6 +1,7 @@
 /*
  * Copyright 2022 wtcat
  */
+#include "base/allocator.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -73,6 +74,12 @@ struct mem_record_node {
 };
 
 _Static_assert(sizeof(struct path_class) <= MTRACER_INST_SIZE, "Over size");
+
+static const char mdump_info[] = {
+"\n\n******************************************************\n"
+    "*                  Memory Tracer Dump                *\n"
+    "******************************************************\n"
+};
 
 static RBTree_Compare_result sum_compare(const RBTree_Node *a,
     const RBTree_Node *b) {
@@ -154,7 +161,7 @@ static bool sorted_iterator(const RBTree_Node *node, RBTree_Direction dir, void 
     struct list_head *pos;
     struct mem_record_node *hnode = CONTAINER_OF(node, struct mem_record_node, rbnode);
     sum += hnode->size;
-    virt_print(vio, "CallPath: %s\n\tMemory: 0x%p Size: %ld\n", 
+    virt_print(vio, "Path: %s\n\tMemory: 0x%p Size: %ld\n", 
         hnode->base.path, hnode->ptr, hnode->size);
     list_for_each(pos, &hnode->head) {
         struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);
@@ -167,6 +174,21 @@ static bool sorted_iterator(const RBTree_Node *node, RBTree_Direction dir, void 
     return false;
 }
 
+static void *mem_alloc(struct mem_allocator *m, size_t size) {
+    (void) m;
+    return malloc(size);
+}
+
+static void mem_free(struct mem_allocator *m, void *ptr) {
+    (void) m;
+    free(ptr);
+}
+
+static struct mem_allocator allocator = {
+    .allocate = mem_alloc,
+    .free = mem_free
+};
+
 static struct backtrace_callbacks callbacks = {
     .begin = backtrace_begin,
     .callback = backtrace_entry,
@@ -174,35 +196,40 @@ static struct backtrace_callbacks callbacks = {
 };
 
 void mem_tracer_set_path_length(void *context, size_t maxlen) {
+    assert(context != NULL);
     struct path_class *path = (struct path_class *)context;
+    if (!maxlen)
+        maxlen = 1;
     MUTEX_LOCK(path);
     path->path_size = maxlen;
     MUTEX_UNLOCK(path);
 }
 
 void *mem_tracer_alloc(void *context, size_t size) {
+    assert(context != NULL);
     struct path_class *path = (struct path_class *)context;
-    void *ptr = malloc(size);
+    MUTEX_LOCK(path);
+    void *ptr = memory_allocate(path->base.allocator, size);
     if (ptr) {
         struct mem_record_node *mrn;
-        MUTEX_LOCK(path);
         mrn = (struct mem_record_node *)record_node_allocate(&path->base, 0, path->path_size);
         mrn->rbnode.color = RBT_RED;
         mrn->ptr = ptr;
         mrn->size = size;
         path->base.pnode = mrn;
         do_backtrace(backtrace_get_instance(), &callbacks, path);
-        MUTEX_UNLOCK(path);
     }
+    MUTEX_UNLOCK(path);
     return ptr;
 }
 
 void mem_tracer_free(void *context, void *ptr) {
+    assert(context != NULL);
     struct path_class *path = (struct path_class *)context;
     struct mem_record_node *rn;
     assert(ptr != NULL);
-    free(ptr);
     MUTEX_LOCK(path);
+    memory_free(path->base.allocator, ptr);
     rn = mem_find(&path->base, ptr);
     if (rn) {
         if (rn->ntype == HEAD_NODE) {
@@ -221,16 +248,13 @@ void mem_tracer_free(void *context, void *ptr) {
 }
 
 void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type type) {
+    assert(context != NULL);
     struct path_class *path = (struct path_class *)context;
     struct iter_argument ia = {0};
     time_t now;
 
     MUTEX_LOCK(path);
-    virt_print(vio, 
-        "\n\n******************************************************\n"
-            "*                  Memory Tracer Dump                *\n"
-            "******************************************************\n"
-    );
+    virt_print(vio, mdump_info);
     if (type == MEM_SORTED_DUMP) {
         ia.vio = vio;
         rbtree_iterate(&path->tree.root, RBT_RIGHT, sorted_iterator, &ia);
@@ -248,7 +272,19 @@ _print:
     MUTEX_UNLOCK(path);
 }
 
+int mem_tracer_set_allocator(void *context, struct mem_allocator *alloc) {
+    assert(context != NULL);
+    struct path_class *path = (struct path_class *)context;
+    if (alloc == NULL)
+        return -EINVAL;
+    MUTEX_LOCK(path);
+    path->base.allocator = alloc;
+    MUTEX_UNLOCK(path);
+    return 0;
+}
+
 void mem_tracer_destory(void *context) {
+    assert(context != NULL);
     struct path_class *path = (struct path_class *)context;
     MUTEX_LOCK(path);
     core_record_destroy(&path->base);
@@ -256,12 +292,12 @@ void mem_tracer_destory(void *context) {
 }
 
 void mem_tracer_init(void *context) {
+    assert(context != NULL);
     struct path_class *path = (struct path_class *)context;
     memset(path, 0, sizeof(*path));
     path->base.tree.compare = ptr_compare;
     INIT_LIST_HEAD(&path->base.head);
-    path->base.alloc = malloc;
-    path->base.free = free;
+    path->base.allocator = &allocator;
     path->base.node_size = sizeof(struct mem_record_node);
     path->tree.compare = sum_compare;
     path->path_size = 512;
