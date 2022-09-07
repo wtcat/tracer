@@ -19,6 +19,9 @@ if (CMAKE_HOST_WIN32)
     enable_language(RC)
     set(WINDOWS TRUE)
     set(TARGET_NAME "${PROJECT_NAME}.exe")
+    add_compile_options(
+        /wd4996
+    )
 elseif (CMAKE_HOST_APPLE)
     set(MACOS TRUE)
     set(TARGET_NAME "${PROJECT_NAME}.elf")
