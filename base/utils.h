@@ -15,6 +15,10 @@ extern "C"{
     ((type *)((char *)ptr - offsetof(type, member)))
 #endif
 
+#ifndef MIN
+#define MIN(a, b) ((a) < (b))? (a): (b)
+#endif
+
 #ifdef __cplusplus
 }
 #endif

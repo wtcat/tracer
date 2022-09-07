@@ -40,11 +40,13 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include
 )
 add_compile_options(
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-rdynamic>
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-Wall>
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-g>
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<C_COMPILER_ID:GNU>>:-O0>
+    $<$<OR:$<C_COMPILER_ID:GNU>>:-rdynamic>
+    $<$<OR:$<C_COMPILER_ID:GNU>>:-fno-omit-frame-pointer>
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<C_COMPILER_ID:GNU>>:-Wall>
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<C_COMPILER_ID:GNU>>:-g>
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<C_COMPILER_ID:GNU>>:-O0>
 )
+
 set(CMAKE_C_STANDARD   11)
 set(CMAKE_CXX_STANDARD 17)
 

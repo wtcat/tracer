@@ -23,12 +23,11 @@ struct record_tree {
 
 struct record_node {
     int count;
-    unsigned long chksum;
     struct list_head link;
     RBTree_Node node;
-    char *sym;
-    char *path;
-    char *path_ss_;
+    size_t max_depth;
+    size_t sp;
+    uintptr_t ip[];
 };
 
 struct record_class {
@@ -40,9 +39,10 @@ struct record_class {
     void *user;
 };
 
-int mem_path_append(struct record_node *node, const char *str);
-struct record_node *record_node_allocate(struct record_class *rc, 
-    size_t symsize, size_t btsize);
+int core_record_ip_compare(struct record_node *ln, struct record_node *rn);
+struct record_node *core_record_node_allocate(struct record_class *rc, 
+    size_t max_depth);
+int core_record_copy_ip(struct record_node *node, const uintptr_t ip[], size_t n);
 int core_record_add(struct record_class *rc, struct record_node *node);
 int core_record_del(struct record_class *rc, struct record_node *node);
 void core_record_destroy(struct record_class *rc);

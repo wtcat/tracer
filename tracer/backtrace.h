@@ -5,12 +5,13 @@
 #define TRACE_BACKTRACE_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"{
 #endif
 
-#define BACKTRACE_MAX_LIMIT 256
+#define BACKTRACE_MAX_LIMIT 64
 
 #ifndef __defined_backtrace_entry_t__
 #define __defined_backtrace_entry_t__
@@ -19,6 +20,8 @@ struct backtrace_entry {
     const char *filename;
     unsigned long pc;
     int line;
+    uintptr_t *ip;
+    size_t n;
 };
 typedef struct backtrace_entry backtrace_entry_t;
 #endif /* backtrace_entry_t */
@@ -32,6 +35,7 @@ struct backtrace_callbacks {
 struct backtrace_class {
     void (*backtrace)(struct backtrace_class *cls, 
         struct backtrace_callbacks *cb, void *user);
+    int (*symbol)(struct backtrace_class *cls, uintptr_t ip, char *sym);
     void *context;
     int min_limit;
     int max_limit;

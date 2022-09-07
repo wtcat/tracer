@@ -86,7 +86,7 @@ static RBTree_Compare_result sum_compare(const RBTree_Node *a,
     const RBTree_Node *b) {
     struct mem_record_node *p1 = CONTAINER_OF(a, struct mem_record_node, rbnode);
     struct mem_record_node *p2 = CONTAINER_OF(b, struct mem_record_node, rbnode);
-    return (long)p1->base.chksum - (long)p2->base.chksum;
+    return core_record_ip_compare(&p1->base, &p2->base);
 }
 
 static RBTree_Compare_result ptr_compare(const RBTree_Node *a,
@@ -132,8 +132,7 @@ static void backtrace_entry(struct backtrace_entry *entry, void *user) {
     struct path_class *path = (struct path_class *)user;
     struct record_class *rc = &path->base;
     struct mem_record_node *node = (struct mem_record_node *)rc->pnode;
-    node->line = entry->line;
-    mem_path_append(&node->base, entry->symbol);
+    core_record_copy_ip(&node->base, entry->ip, entry->n);
 }
 
 static void backtrace_end(void *user) {
@@ -213,7 +212,8 @@ void *mem_tracer_alloc(void *context, size_t size) {
     void *ptr = memory_allocate(path->base.allocator, size);
     if (ptr) {
         struct mem_record_node *mrn;
-        mrn = (struct mem_record_node *)record_node_allocate(&path->base, 0, path->path_size);
+        mrn = (struct mem_record_node *)core_record_node_allocate(&path->base, 
+            path->path_size);
         mrn->rbnode.color = RBT_RED;
         mrn->ptr = ptr;
         mrn->size = size;
