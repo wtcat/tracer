@@ -1,6 +1,7 @@
 /*
  * Copyright 2022 wtcat
  */
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -89,22 +90,15 @@ int main(int argc, char *argv[]) {
     printf_printer_init(&cout);
     mem_tracer_init(&mtrace_context);
     mem_tracer_set_allocator(&mtrace_context, &allocator);
-#if defined(_MSC_VER)
-    backtrace_set_limits(backtrace_get_instance(), 5, 50);
-#else
-    backtrace_set_limits(backtrace_get_instance(), 1, 50);
-#endif
 
     func_5();
     mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
     mem_tracer_dump(&mtrace_context, &cout, MEM_SORTED_DUMP);
 
-    printf("**Memory Monitor-1: %lu\n", used_size);
+    printf("**Memory Monitor-1: %" PRIu64 "\n", used_size);
     TEST_FREE();
-    printf("**Memory Monitor-2: %lu\n", used_size);
     mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
-    printf("**Memory Monitor-3: %lu\n", used_size);
     mem_tracer_deinit(&mtrace_context);
-    printf("**Memory Monitor-4: %lu\n", used_size);
+    printf("**Memory Monitor-2: %" PRIu64 "\n", used_size);
     return 0;
 }

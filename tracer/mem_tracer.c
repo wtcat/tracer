@@ -148,7 +148,7 @@ static bool iterator(struct record_node *n, void *u) {
     const struct printer *vio = ia->vio;
     struct mem_record_node *mrn = CONTAINER_OF(n, struct mem_record_node, base);
     ia->msize += mrn->size;
-    virt_print(vio, "CallPath: %s\n\tMemory: 0x%p Size: %ld\n", 
+    virt_print(vio, "<Path>: %s\n\tMemory: 0x%p Size: %ld\n", 
         mrn->base.path, mrn->ptr, mrn->size);
     return true;
 }
@@ -161,7 +161,7 @@ static bool sorted_iterator(const RBTree_Node *node, RBTree_Direction dir, void 
     struct list_head *pos;
     struct mem_record_node *hnode = CONTAINER_OF(node, struct mem_record_node, rbnode);
     sum += hnode->size;
-    virt_print(vio, "Path: %s\n\tMemory: 0x%p Size: %ld\n", 
+    virt_print(vio, "<Path>: %s\n\tMemory: 0x%p Size: %ld\n", 
         hnode->base.path, hnode->ptr, hnode->size);
     list_for_each(pos, &hnode->head) {
         struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);

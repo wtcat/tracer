@@ -58,7 +58,7 @@ static void win_backtrace(struct backtrace_class *cls, struct backtrace_callback
 static struct backtrace_class _win_backtrace_class_inst = {
     .backtrace = win_backtrace,
     .context = NULL,
-    .min_limit = 0,
+    .min_limit = 5,
     .max_limit = BACKTRACE_MAX_LIMIT
 };
 
@@ -101,7 +101,7 @@ static void unix_backtrace(struct backtrace_class *cls, struct backtrace_callbac
 static struct backtrace_class _unix_backtrace_class_inst = {
     .backtrace = unix_backtrace,
     .context = NULL,
-    .min_limit = 0,
+    .min_limit = 1,
     .max_limit = BACKTRACE_MAX_LIMIT
 };
 #endif //_WIN32
