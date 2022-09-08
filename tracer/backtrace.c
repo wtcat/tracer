@@ -2,6 +2,7 @@
  * Copyright 2022 wtcat
  */
 #include <errno.h>
+#include <string.h>
 #include <stdlib.h>
 
 #include "base/utils.h"
@@ -11,6 +12,8 @@
 #if defined(_WIN32)
 #define SW_IMPL
 #include "win/stackwalker.h"
+
+#pragma comment (lib,"imagehlp.lib")
 
 #define BACKTRACE_OPTIONS SW_OPTIONS_SYMBOL //(SW_OPTIONS_SYMBOL|SW_OPTIONS_SOURCEPOS)
 struct callback_args {
@@ -86,17 +89,16 @@ static int win_fast_symbol_entry(struct backtrace_class *cls,
     symbol->MaxNameLen   = 255;
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
     SymFromAddr(hprocess, (DWORD64)ip, 0, symbol);
-    size_t len = strlen(symbol);
-    size_t cplen = MIN(max - 1, len);
-    strncpy(sym, symbol, cplen);
+    size_t cplen = MIN(max - 1, symbol->NameLen);
+    strncpy(sym, symbol->Name, cplen);
     sym[cplen] = '\0';
     return 0;
 }
 
 static void win_begin(struct backtrace_class *cls, void *context, bool to_symbol) {
-    HANDLE hprocess = *(HANDLE *)context;
     if (!to_symbol) {
-        *(HANDLE *)context = GetCurrentProcess();
+        HANDLE proc = GetCurrentProcess();
+        *(HANDLE *)context = proc;
     } else {
         HANDLE hprocess = *(HANDLE *)context;
         SymInitialize(hprocess, NULL, TRUE );
@@ -179,9 +181,9 @@ void backtrace_init(enum bracktrace_type type, struct backtrace_class *cls) {
         cls->sym_entry = NULL;
         cls->min_limit = 5;
     } else {
-        cls->backtrace = fast_backtrace;
-        cls->sym_entry = fast_symbol_entry;
-        cls->sym_begin = win_begin;
+        cls->backtrace = win_fast_backtrace;
+        cls->sym_entry = win_fast_symbol_entry;
+        cls->begin = win_begin;
         cls->min_limit = 1;
         cls->ctx_size = sizeof(HANDLE);
     }

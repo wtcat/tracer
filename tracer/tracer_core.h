@@ -25,6 +25,7 @@ struct record_node {
     int count;
     struct list_head link;
     RBTree_Node node;
+    uintptr_t ipkey;
     size_t max_depth;
     size_t sp;
     void **ip;

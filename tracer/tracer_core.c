@@ -13,9 +13,24 @@
 #include "base/utils.h"
 #include "tracer/tracer_core.h"
 
+static uint32_t ipkey_generate(uint32_t crc, const uint8_t* data, size_t len) {
+    static const uint32_t table[16] = {
+        0x00000000U, 0x1db71064U, 0x3b6e20c8U, 0x26d930acU,
+        0x76dc4190U, 0x6b6b51f4U, 0x4db26158U, 0x5005713cU,
+        0xedb88320U, 0xf00f9344U, 0xd6d6a3e8U, 0xcb61b38cU,
+        0x9b64c2b0U, 0x86d3d2d4U, 0xa00ae278U, 0xbdbdf21cU,
+    };
+    crc = ~crc;
+    for (size_t i = 0; i < len; i++) {
+        uint8_t byte = data[i];
+        crc = (crc >> 4) ^ table[(crc ^ byte) & 0x0f];
+        crc = (crc >> 4) ^ table[(crc ^ ((uint32_t)byte >> 4)) & 0x0f];
+    }
+    return ~crc;
+}
+
 int core_record_ip_compare(struct record_node *ln, struct record_node *rn) {
-    size_t n = ln->max_depth - ln->sp;
-    return memcmp(&ln->ip[ln->sp], &rn->ip[rn->sp], n);
+    return (int)((intptr_t)ln->ipkey - (intptr_t)rn->ipkey);
 }
 
 struct record_node *core_record_node_allocate(struct record_class *rc, 
@@ -55,6 +70,8 @@ int core_record_add(struct record_class *rc, struct record_node *node) {
     found = rbtree_insert(&rc->tree.root, &node->node, rc->tree.compare, true);
     assert(found == NULL);
     if (!found) {
+        node->ipkey = ipkey_generate(0, (void*)&node->ip[node->sp], 
+            core_record_ip_size(node));
         list_add_tail(&node->link, &rc->head);
         return 0;
     }

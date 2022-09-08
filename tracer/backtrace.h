@@ -66,13 +66,13 @@ static inline int backtrace_addr2symbol(struct backtrace_class *path,
 static inline void backtrace_begin(struct backtrace_class *path, 
     void *context, bool to_symbol) {
     if (path->begin)
-        return path->begin(path, context, to_symbol);
+        path->begin(path, context, to_symbol);
 }
 
 static inline void backtrace_end(struct backtrace_class *path, 
     void *context, bool to_symbol) {
     if (path->end)
-        return path->end(path, context, to_symbol);
+        path->end(path, context, to_symbol);
 }
 
 static inline void backtrace_set_limits(struct backtrace_class *cls, 
