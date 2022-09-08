@@ -1,17 +1,17 @@
 /*
- * Copyright 2022 wtcat 
+ * Copyright 2022 wtcat
  */
-#ifdef MTRACE_H_
+#ifndef MTRACE_H_
 #define MTRACE_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int _lvgl_mem_init(void);
-void* _lvgl_malloc(size_t size);
-void* _lvgl_realloc(void* ptr, size_t size);
-void _lvgl_free(void* ptr);
+    int _ui_mem_init(void);
+    void* _ui_malloc(size_t size);
+    void* _ui_realloc(void* ptr, size_t size);
+    void _ui_free(void* ptr);
 
 #ifdef __cplusplus
 }
