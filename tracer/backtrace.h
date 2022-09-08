@@ -87,7 +87,7 @@ static inline size_t backtrace_context_size(struct backtrace_class *cls) {
     return cls->ctx_size;
 }
 
-void backtrace_init(enum bracktrace_type type, struct backtrace_class *cls);
+int backtrace_init(enum bracktrace_type type, struct backtrace_class *cls);
 
 #ifdef __cplusplus
 }

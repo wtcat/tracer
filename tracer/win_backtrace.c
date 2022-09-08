@@ -8,8 +8,6 @@
 #include "base/utils.h"
 #include "tracer/backtrace.h"
 
-
-#if defined(_WIN32)
 #define SW_IMPL
 #include "win/stackwalker.h"
 
@@ -101,81 +99,11 @@ static void win_begin(struct backtrace_class *cls, void *context, bool to_symbol
         *(HANDLE *)context = proc;
     } else {
         HANDLE hprocess = *(HANDLE *)context;
-        SymInitialize(hprocess, NULL, TRUE );
+        SymInitialize(hprocess, NULL, TRUE);
     }
 }
 
-#else //!_WIN32
-#include <string.h>
-#include <execinfo.h>
-#include <libunwind.h>
-
-static void unix_backtrace(struct backtrace_class *cls, struct backtrace_callbacks *cb, 
-    void *user) {
-    void *ip_array[BACKTRACE_MAX_LIMIT];
-    struct backtrace_entry e;
-    unw_cursor_t cursor;
-    unw_context_t uc;
-    int n = 0;
-
-    unw_getcontext(&uc);
-    unw_init_local(&cursor, &uc);
-    cb->begin(user);
-    while (unw_step(&cursor) > 0) {
-        unw_word_t ip;
-        unw_get_reg(&cursor, UNW_REG_IP, &ip);
-        ip_array[n++] = (void *)ip;
-    }
-    if (n > cls->min_limit) {
-        e.ip = ip_array + cls->min_limit;
-        e.n = MIN(cls->max_limit, n - cls->min_limit);
-        cb->callback(&e, user);
-    }
-    cb->end(user);
-}
-
-static void fast_backtrace(struct backtrace_class *cls, struct backtrace_callbacks *cb, 
-    void *user) {
-    struct backtrace_entry e;
-    void *ip_array[BACKTRACE_MAX_LIMIT*2];
-    int min, max;
-    int ret;
-
-    cb->begin(user);
-    min = cls->min_limit;
-    ret = backtrace(ip_array, sizeof(ip_array));
-    if (ret > min) {
-        max = cls->max_limit;
-        e.ip = ip_array + min;
-        e.n = MIN(max, ret);
-        cb->callback(&e, user);
-    }
-    cb->end(user);
-}
-
-static int fast_symbol_entry(struct backtrace_class *cls, 
-    void *ip, char *sym, size_t max, void *context) {
-    (void) context;
-    char **ss; 
-    if (ip == NULL)
-        return -EINVAL;
-    ss = backtrace_symbols(&ip, 1);
-    if (ss) {
-        size_t len = strlen(*ss);
-        size_t cplen = MIN(max - 1, len);
-        strncpy(sym, *ss, cplen);
-        sym[cplen] = '\0';
-        free(ss);
-        return 0;
-    }
-    return -ENOENT;
-}
-
-#endif //_WIN32
-
-void backtrace_init(enum bracktrace_type type, struct backtrace_class *cls) {
-    memset(cls, 0, sizeof(*cls));
-#if defined(_WIN32)
+int backtrace_init(enum bracktrace_type type, struct backtrace_class *cls) {
     if (type == UNWIND_BACKTRACE) {
         cls->backtrace = win_backtrace;
         cls->sym_entry = NULL;
@@ -189,15 +117,5 @@ void backtrace_init(enum bracktrace_type type, struct backtrace_class *cls) {
     }
     cls->min_limit = 5;
     cls->max_limit = BACKTRACE_MAX_LIMIT;
-#else
-    if (type == UNWIND_BACKTRACE) {
-        cls->backtrace = unix_backtrace;
-        cls->sym_entry = NULL;
-    } else {
-        cls->backtrace = fast_backtrace;
-        cls->sym_entry = fast_symbol_entry;
-    }
-    cls->min_limit = 1;
-    cls->max_limit = BACKTRACE_MAX_LIMIT;
-#endif
+    return 0;
 }
