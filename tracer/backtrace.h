@@ -6,12 +6,19 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <errno.h>
 
 #ifdef __cplusplus
 extern "C"{
 #endif
 
 #define BACKTRACE_MAX_LIMIT 64
+
+enum bracktrace_type {
+    FAST_BACKTRACE,
+    UNWIND_BACKTRACE
+};
 
 #ifndef __defined_backtrace_entry_t__
 #define __defined_backtrace_entry_t__
@@ -20,7 +27,7 @@ struct backtrace_entry {
     const char *filename;
     unsigned long pc;
     int line;
-    uintptr_t *ip;
+    void **ip;
     size_t n;
 };
 typedef struct backtrace_entry backtrace_entry_t;
@@ -35,10 +42,13 @@ struct backtrace_callbacks {
 struct backtrace_class {
     void (*backtrace)(struct backtrace_class *cls, 
         struct backtrace_callbacks *cb, void *user);
-    int (*symbol)(struct backtrace_class *cls, uintptr_t ip, char *sym);
-    void *context;
+    void (*begin)(struct backtrace_class *cls, void *context, bool to_symbol);
+    int (*sym_entry)(struct backtrace_class *cls, 
+        void *ip, char *sym, size_t max, void *context);
+    void (*end)(struct backtrace_class *cls, void *context, bool to_symbol);
     int min_limit;
     int max_limit;
+    size_t ctx_size;
 };
 
 static inline void do_backtrace(struct backtrace_class *path, 
@@ -46,9 +56,23 @@ static inline void do_backtrace(struct backtrace_class *path,
     path->backtrace(path, cb, user);
 }
 
-static inline void backtrace_set_context(struct backtrace_class *path, 
-    void *context) {
-    path->context = context;
+static inline int backtrace_addr2symbol(struct backtrace_class *path, 
+    void *ip, char *sym, size_t max, void *user) {
+    if (path->sym_entry)
+        return path->sym_entry(path, ip, sym, max, user);
+    return -EINVAL;
+}
+
+static inline void backtrace_begin(struct backtrace_class *path, 
+    void *context, bool to_symbol) {
+    if (path->begin)
+        return path->begin(path, context, to_symbol);
+}
+
+static inline void backtrace_end(struct backtrace_class *path, 
+    void *context, bool to_symbol) {
+    if (path->end)
+        return path->end(path, context, to_symbol);
 }
 
 static inline void backtrace_set_limits(struct backtrace_class *cls, 
@@ -59,7 +83,11 @@ static inline void backtrace_set_limits(struct backtrace_class *cls,
     cls->max_limit = max_limit;
 }
 
-void backtrace_init(struct backtrace_class *cls, void *context);
+static inline size_t backtrace_context_size(struct backtrace_class *cls) {
+    return cls->ctx_size;
+}
+
+void backtrace_init(enum bracktrace_type type, struct backtrace_class *cls);
 
 #ifdef __cplusplus
 }

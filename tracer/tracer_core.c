@@ -21,24 +21,26 @@ int core_record_ip_compare(struct record_node *ln, struct record_node *rn) {
 struct record_node *core_record_node_allocate(struct record_class *rc, 
     size_t max_depth) {
     assert(rc->node_size >= sizeof(struct record_node));
+    size_t node_size = (rc->node_size + (sizeof(void *) - 1)) & ~(sizeof(void *) - 1);
     struct record_node *rn = memory_allocate(rc->allocator, 
-        rc->node_size + max_depth * sizeof(uintptr_t));
+        node_size + max_depth * sizeof(void *));
     if (rn != NULL) {
         memset(rn, 0, rc->node_size);
         rn->node.color = RBT_RED;
         rn->max_depth = max_depth;
+        rn->ip = (void **)((char *)rn + node_size);
         rn->sp = max_depth;
     }
     return rn;
 }
 
-int core_record_copy_ip(struct record_node *node, const uintptr_t ip[], size_t n) {
-    if (node == NULL || ip == 0)
+int core_record_copy_ip(struct record_node *node, const void *ip[], size_t n) {
+    if (node == NULL || ip == NULL)
         return -EINVAL;
     size_t size = MIN(node->sp, n);
     size_t i = 0, sp = node->sp;
     while (size > 0) {
-        node->ip[sp - i - 1] = ip[i];
+        node->ip[sp - i - 1] = (void *)ip[i];
         i++;
         size--;
     }

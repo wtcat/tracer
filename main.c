@@ -90,6 +90,7 @@ int main(int argc, char *argv[]) {
     printf_printer_init(&cout);
     mem_tracer_init(&mtrace_context);
     mem_tracer_set_allocator(&mtrace_context, &allocator);
+    mem_tracer_set_path_separator(&mtrace_context, "\n\t->");
 
     func_5();
     mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);

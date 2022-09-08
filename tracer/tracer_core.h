@@ -27,7 +27,7 @@ struct record_node {
     RBTree_Node node;
     size_t max_depth;
     size_t sp;
-    uintptr_t ip[];
+    void **ip;
 };
 
 struct record_class {
@@ -39,10 +39,17 @@ struct record_class {
     void *user;
 };
 
+static inline size_t core_record_ip_size(const struct record_node *n) {
+    return n->max_depth - n->sp;
+}
+
+static inline void *core_record_ip(const struct record_node *n) {
+    return n->ip + n->sp;
+}
 int core_record_ip_compare(struct record_node *ln, struct record_node *rn);
 struct record_node *core_record_node_allocate(struct record_class *rc, 
     size_t max_depth);
-int core_record_copy_ip(struct record_node *node, const uintptr_t ip[], size_t n);
+int core_record_copy_ip(struct record_node *node, const void *ip[], size_t n);
 int core_record_add(struct record_class *rc, struct record_node *node);
 int core_record_del(struct record_class *rc, struct record_node *node);
 void core_record_destroy(struct record_class *rc);

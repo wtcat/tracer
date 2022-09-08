@@ -50,15 +50,18 @@ enum node_type {
 
 struct iter_argument {
     const struct printer *vio;
+    struct path_class *path;
     size_t msize;
 };
 
 struct path_class {
+#define PATH_SEPARATOR_SIZE 16
     struct record_class base;
     struct record_tree tree;
     struct backtrace_class tracer;
     MUTEX_LOCK_DECLARE(lock);
     size_t path_size;
+    char separator[PATH_SEPARATOR_SIZE];
 };
 
 struct mem_record_node {
@@ -72,6 +75,7 @@ struct mem_record_node {
     void  *ptr;
     size_t size;
     int line;
+    void *context; //For path_class::tracer
 };
 
 _Static_assert(sizeof(struct path_class) <= MTRACER_INST_SIZE, "Over size");
@@ -124,23 +128,49 @@ static int mem_instert(struct path_class *path, struct mem_record_node *node) {
     return 0;
 }
 
-static void backtrace_begin(void *user) {
-    // puts("Backtrace Begin:\n");
-}
-
-static void backtrace_entry(struct backtrace_entry *entry, void *user) {
+static void _backtrace_begin(void *user) {
     struct path_class *path = (struct path_class *)user;
     struct record_class *rc = &path->base;
     struct mem_record_node *node = (struct mem_record_node *)rc->pnode;
-    core_record_copy_ip(&node->base, entry->ip, entry->n);
+    // puts("Backtrace Begin:\n");
+    backtrace_begin(&path->tracer, node->context, false);
 }
 
-static void backtrace_end(void *user) {
+static void _backtrace_entry(struct backtrace_entry *entry, void *user) {
+    struct path_class *path = (struct path_class *)user;
+    struct record_class *rc = &path->base;
+    struct mem_record_node *node = (struct mem_record_node *)rc->pnode;
+    core_record_copy_ip(&node->base, (const void **)entry->ip, entry->n);
+}
+
+static void _backtrace_end(void *user) {
     struct path_class *path = (struct path_class *)user;
     struct record_class *rc = &path->base;
     struct mem_record_node *mrn = (struct mem_record_node *)rc->pnode; 
+    backtrace_end(&path->tracer, mrn->context, false);
     core_record_add(rc, &mrn->base);
     mem_instert(path, mrn);
+}
+
+static void mem_path_print(const struct printer *vio, struct path_class *path, 
+    struct mem_record_node *node, const char *separator) {
+    size_t n = core_record_ip_size(&node->base);
+    void **ip = core_record_ip(&node->base);
+    char str[256];
+
+    virt_print(vio, "<Path>: ");
+    backtrace_begin(&path->tracer, node->context, true);
+    for (size_t i = 0; i < n; i++) {
+        int ret = backtrace_addr2symbol(&path->tracer, ip[i], str, 
+            sizeof(str), node->context);
+        if (ret) {
+            virt_print(vio, "%s0x%p", separator, ip[i]);
+            continue;
+        }
+        virt_print(vio, "%s%s", separator, str);
+    }
+    backtrace_end(&path->tracer, node->context, true);
+    virt_print(vio, "\n");
 }
 
 static bool iterator(struct record_node *n, void *u) {
@@ -148,8 +178,9 @@ static bool iterator(struct record_node *n, void *u) {
     const struct printer *vio = ia->vio;
     struct mem_record_node *mrn = CONTAINER_OF(n, struct mem_record_node, base);
     ia->msize += mrn->size;
-    virt_print(vio, "<Path>: %s\n\tMemory: 0x%p Size: %ld\n", 
-        mrn->base.path, mrn->ptr, mrn->size);
+    mem_path_print(vio, ia->path, mrn, ia->path->separator);
+    virt_print(vio, "\tMemory: 0x%p Size: %ld\n", 
+        mrn->ptr, mrn->size);
     return true;
 }
 
@@ -161,8 +192,9 @@ static bool sorted_iterator(const RBTree_Node *node, RBTree_Direction dir, void 
     struct list_head *pos;
     struct mem_record_node *hnode = CONTAINER_OF(node, struct mem_record_node, rbnode);
     sum += hnode->size;
-    virt_print(vio, "<Path>: %s\n\tMemory: 0x%p Size: %ld\n", 
-        hnode->base.path, hnode->ptr, hnode->size);
+    mem_path_print(vio, ia->path, hnode, ia->path->separator);
+    virt_print(vio, "\tMemory: 0x%p Size: %ld\n", 
+        hnode->ptr, hnode->size);
     list_for_each(pos, &hnode->head) {
         struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);
         sum += p->size;
@@ -190,9 +222,9 @@ static struct mem_allocator allocator = {
 };
 
 static struct backtrace_callbacks callbacks = {
-    .begin = backtrace_begin,
-    .callback = backtrace_entry,
-    .end = backtrace_end
+    .begin = _backtrace_begin,
+    .callback = _backtrace_entry,
+    .end = _backtrace_end
 };
 
 void mem_tracer_set_path_length(void *context, size_t maxlen) {
@@ -213,10 +245,11 @@ void *mem_tracer_alloc(void *context, size_t size) {
     if (ptr) {
         struct mem_record_node *mrn;
         mrn = (struct mem_record_node *)core_record_node_allocate(&path->base, 
-            path->path_size);
+            path->path_size + backtrace_context_size(&path->tracer));
         mrn->rbnode.color = RBT_RED;
         mrn->ptr = ptr;
         mrn->size = size;
+        mrn->context = mrn + 1;
         path->base.pnode = mrn;
         do_backtrace(&path->tracer, &callbacks, path);
     }
@@ -258,11 +291,13 @@ void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type t
     virt_print(vio, mdump_info);
     if (type == MEM_SORTED_DUMP) {
         ia.vio = vio;
+        ia.path = path;
         rbtree_iterate(&path->tree.root, RBT_RIGHT, sorted_iterator, &ia);
         goto _print;
     }
     if (type == MEM_SEQUEUE_DUMP) {
         ia.vio = vio;
+        ia.path = path;
         core_record_visitor(&path->base, iterator, &ia);
     }
 _print:
@@ -284,6 +319,18 @@ int mem_tracer_set_allocator(void *context, struct mem_allocator *alloc) {
     return 0;
 }
 
+int mem_tracer_set_path_separator(void *context, const char *separator) {
+    assert(context != NULL);
+    struct path_class *path = (struct path_class *)context;
+    if (separator == NULL)
+        return -EINVAL;
+    MUTEX_LOCK(path);
+    memset(path->separator, 0, PATH_SEPARATOR_SIZE);
+    strncpy(path->separator, separator, PATH_SEPARATOR_SIZE-1);
+    MUTEX_UNLOCK(path);
+    return 0;
+}
+
 void mem_tracer_destory(void *context) {
     assert(context != NULL);
     struct path_class *path = (struct path_class *)context;
@@ -301,8 +348,9 @@ void mem_tracer_init(void *context) {
     path->base.allocator = &allocator;
     path->base.node_size = sizeof(struct mem_record_node);
     path->tree.compare = sum_compare;
-    path->path_size = 512;
-    backtrace_init(&path->tracer, NULL);
+    path->path_size = BACKTRACE_MAX_LIMIT;
+    path->separator[0] = '/';
+    backtrace_init(FAST_BACKTRACE, &path->tracer);
     MUTEX_INIT(path);
 }
 
