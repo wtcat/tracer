@@ -35,6 +35,7 @@ void mem_tracer_set_path_limits(void *context, int min, int max);
 int mem_tracer_set_path_separator(void *context, const char *separator);
 void mem_tracer_init(void *context);
 void mem_tracer_deinit(void* context);
+size_t mem_tracer_get_used(void* context);
 
 #ifdef __cplusplus
 }

@@ -22,7 +22,6 @@ struct record_tree {
 };
 
 struct record_node {
-    int count;
     struct list_head link;
     RBTree_Node node;
     uintptr_t ipkey;

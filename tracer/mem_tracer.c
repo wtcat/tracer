@@ -71,10 +71,8 @@ struct mem_record_node {
         struct list_head head;
         struct list_head node;
     };
-    enum node_type ntype;
     void  *ptr;
     size_t size;
-    int line;
     void *context; //For path_class::tracer
 };
 
@@ -112,17 +110,15 @@ static struct mem_record_node *mem_find(struct record_class *rc, void *ptr) {
     return NULL;
 }
 
-static int mem_instert(struct path_class *path, struct mem_record_node *node) {
+static int mem_instert(struct path_class *path, struct mem_record_node *node, bool reset) {
     RBTree_Node *found;
     if (path == NULL || node == NULL)
         return -EINVAL;
     found = rbtree_insert(&path->tree.root, &node->rbnode, path->tree.compare, true);
     if (found) {
         struct mem_record_node *hnode = CONTAINER_OF(found, struct mem_record_node, rbnode);
-        node->ntype = MEMB_NODE;
         list_add_tail(&node->node, &hnode->head);
-    } else if (node->ntype != HEAD_NODE) {
-        node->ntype = HEAD_NODE;
+    } else if (reset) {
         INIT_LIST_HEAD(&node->head);
     }
     return 0;
@@ -149,7 +145,7 @@ static void _backtrace_end(void *user) {
     struct mem_record_node *mrn = (struct mem_record_node *)rc->pnode; 
     backtrace_end(&path->tracer, mrn->context, false);
     core_record_add(rc, &mrn->base);
-    mem_instert(path, mrn);
+    mem_instert(path, mrn, true);
 }
 
 static void mem_path_print(const struct printer *vio, struct path_class *path, 
@@ -178,9 +174,11 @@ static bool iterator(struct record_node *n, void *u) {
     const struct printer *vio = ia->vio;
     struct mem_record_node *mrn = CONTAINER_OF(n, struct mem_record_node, base);
     ia->msize += mrn->size;
-    mem_path_print(vio, ia->path, mrn, ia->path->separator);
-    virt_print(vio, "\tMemory: 0x%p Size: %ld\n", 
-        mrn->ptr, mrn->size);
+    if (vio != NULL) {
+        mem_path_print(vio, ia->path, mrn, ia->path->separator);
+        virt_print(vio, "\tMemory: 0x%p Size: %ld\n",
+            mrn->ptr, mrn->size);
+    }
     return true;
 }
 
@@ -266,16 +264,20 @@ void mem_tracer_free(void *context, void *ptr) {
     memory_free(path->base.allocator, ptr);
     rn = mem_find(&path->base, ptr);
     if (rn) {
-        if (rn->ntype == HEAD_NODE) {
+        if (!_RBTree_Is_node_off_tree(&rn->rbnode)) {
+            assert(rn->head.next != NULL);
+            assert(rn->head.prev != NULL);
             rbtree_extract(&path->tree.root, &rn->rbnode);
+            _RBTree_Set_off_tree(&rn->rbnode);
             if (!list_empty(&rn->head)) {
                 struct mem_record_node *new_node;
                 new_node = CONTAINER_OF(rn->head.next, struct mem_record_node, node);
                 list_del(&rn->head);
-                mem_instert(path, new_node);
+                mem_instert(path, new_node, false);
             }
-        } else if (rn->ntype == MEMB_NODE)
+        } else {
             list_del(&rn->node);
+        }
         core_record_del(&path->base, &rn->base);
     }
     MUTEX_UNLOCK(path);
@@ -365,4 +367,15 @@ void mem_tracer_set_path_limits(void *context, int min, int max) {
     MUTEX_LOCK(path);
     backtrace_set_limits(&path->tracer, min, max);
     MUTEX_UNLOCK(path);
+}
+
+size_t mem_tracer_get_used(void* context) {
+    assert(context != NULL);
+    struct path_class* path = (struct path_class*)context;
+    struct iter_argument ia = {0};
+    MUTEX_LOCK(path);
+    ia.path = path;
+    core_record_visitor(&path->base, iterator, &ia);
+    MUTEX_UNLOCK(path);
+    return ia.msize;
 }
