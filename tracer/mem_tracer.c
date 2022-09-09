@@ -231,6 +231,7 @@ int mem_node_create(struct path_class *path, void *ptr, size_t size) {
     mnode = (struct mem_record_node *)core_record_node_allocate(&path->base, 
         path->path_size + backtrace_context_size(&path->tracer));
     if (mnode) {
+        rbtree_set_off_tree(&mnode->rbnode);
         mnode->ptr = ptr;
         mnode->size = size;
         mnode->context = mnode + 1;
@@ -274,13 +275,13 @@ void mem_tracer_free(void *context, void *ptr) {
     rn = mem_find(&path->base, ptr);
     if (rn) {
         memory_free(path->base.allocator, ptr);
-        if (!_RBTree_Is_node_off_tree(&rn->rbnode)) {
+        if (!rbtree_is_node_off_tree(&rn->rbnode)) {
             rbtree_extract(&path->tree.root, &rn->rbnode);
             if (!list_empty(&rn->head)) {
                 struct mem_record_node *new_node;
-                new_node = CONTAINER_OF(rn->head.next, struct mem_record_node, node);
+                new_node = CONTAINER_OF(rn->head.next, 
+                    struct mem_record_node, node);
                 list_del(&rn->head);
-                _RBTree_Set_off_tree(&new_node->rbnode);
                 mem_instert(path, new_node, false);
             }
         } else {

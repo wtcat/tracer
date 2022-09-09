@@ -41,6 +41,7 @@ struct record_node *core_record_node_allocate(struct record_class *rc,
         node_size + max_depth * sizeof(void *));
     if (rn != NULL) {
         memset(rn, 0, rc->node_size);
+        rbtree_set_off_tree(&rn->node);
         rn->max_depth = max_depth;
         rn->ip = (void **)((char *)rn + node_size);
         rn->sp = max_depth;
