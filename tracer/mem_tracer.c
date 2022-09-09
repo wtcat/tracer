@@ -1,10 +1,8 @@
 /*
  * Copyright 2022 wtcat
  */
-#include "base/allocator.h"
 #include <errno.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +13,8 @@
 #include "base/list.h"
 #include "base/utils.h"
 #include "base/printer.h"
+#include "base/allocator.h"
+#include "base/assert.h"
 #include "tracer/tracer_core.h"
 #include "tracer/mem_tracer.h"
 #include "tracer/backtrace.h"
@@ -86,6 +86,8 @@ static const char mdump_info[] = {
 
 static RBTree_Compare_result sum_compare(const RBTree_Node *a,
     const RBTree_Node *b) {
+    ASSERT_TRUE(a != NULL);
+    ASSERT_TRUE(b != NULL);
     struct mem_record_node *p1 = CONTAINER_OF(a, struct mem_record_node, rbnode);
     struct mem_record_node *p2 = CONTAINER_OF(b, struct mem_record_node, rbnode);
     return core_record_ip_compare(&p1->base, &p2->base);
@@ -226,7 +228,7 @@ static struct backtrace_callbacks callbacks = {
 };
 
 void mem_tracer_set_path_length(void *context, size_t maxlen) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     if (!maxlen)
         maxlen = 1;
@@ -236,7 +238,7 @@ void mem_tracer_set_path_length(void *context, size_t maxlen) {
 }
 
 void *mem_tracer_alloc(void *context, size_t size) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     MUTEX_LOCK(path);
     void *ptr = memory_allocate(path->base.allocator, size);
@@ -256,23 +258,23 @@ void *mem_tracer_alloc(void *context, size_t size) {
 }
 
 void mem_tracer_free(void *context, void *ptr) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     struct mem_record_node *rn;
-    assert(ptr != NULL);
+    ASSERT_TRUE(ptr != NULL);
     MUTEX_LOCK(path);
     rn = mem_find(&path->base, ptr);
     if (rn) {
         memory_free(path->base.allocator, ptr);
         if (!_RBTree_Is_node_off_tree(&rn->rbnode)) {
-            assert(rn->head.next != NULL);
-            assert(rn->head.prev != NULL);
+            ASSERT_TRUE(rn->head.next != NULL);
+            ASSERT_TRUE(rn->head.prev != NULL);
             rbtree_extract(&path->tree.root, &rn->rbnode);
-            _RBTree_Set_off_tree(&rn->rbnode);
             if (!list_empty(&rn->head)) {
                 struct mem_record_node *new_node;
                 new_node = CONTAINER_OF(rn->head.next, struct mem_record_node, node);
                 list_del(&rn->head);
+                _RBTree_Set_off_tree(&new_node->rbnode);
                 mem_instert(path, new_node, false);
             }
         } else {
@@ -286,7 +288,7 @@ void mem_tracer_free(void *context, void *ptr) {
 }
 
 void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type type) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     struct iter_argument ia = {0};
     time_t now;
@@ -313,7 +315,7 @@ _print:
 }
 
 int mem_tracer_set_allocator(void *context, struct mem_allocator *alloc) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     if (alloc == NULL)
         return -EINVAL;
@@ -324,7 +326,7 @@ int mem_tracer_set_allocator(void *context, struct mem_allocator *alloc) {
 }
 
 int mem_tracer_set_path_separator(void *context, const char *separator) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     if (separator == NULL)
         return -EINVAL;
@@ -336,7 +338,7 @@ int mem_tracer_set_path_separator(void *context, const char *separator) {
 }
 
 void mem_tracer_destory(void *context) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     MUTEX_LOCK(path);
     core_record_destroy(&path->base);
@@ -344,7 +346,7 @@ void mem_tracer_destory(void *context) {
 }
 
 void mem_tracer_init(void *context) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
     memset(path, 0, sizeof(*path));
     path->base.tree.compare = ptr_compare;
@@ -372,7 +374,7 @@ void mem_tracer_set_path_limits(void *context, int min, int max) {
 }
 
 size_t mem_tracer_get_used(void* context) {
-    assert(context != NULL);
+    ASSERT_TRUE(context != NULL);
     struct path_class* path = (struct path_class*)context;
     struct iter_argument ia = {0};
     MUTEX_LOCK(path);
