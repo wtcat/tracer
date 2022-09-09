@@ -10,6 +10,12 @@
 extern "C"{
 #endif
 
+#if defined(__GNUC__) || defined(Clang)
+#define __unused __attribute__((unsed))
+#else
+#define __unused
+#endif
+
 #ifndef CONTAINER_OF
 #define CONTAINER_OF(ptr, type, member) \
     ((type *)((char *)ptr - offsetof(type, member)))

@@ -17,13 +17,13 @@ extern "C"{
 #endif
 
 struct record_tree {
-    RBTree_Control root;
-    RBTree_Compare compare;    
+    rbtree_control root;
+    rbtree_compare compare;    
 };
 
 struct record_node {
     struct list_head link;
-    RBTree_Node node;
+    rbtree_node node;
     uintptr_t ipkey;
     size_t max_depth;
     size_t sp;
@@ -46,7 +46,9 @@ static inline size_t core_record_ip_size(const struct record_node *n) {
 static inline void *core_record_ip(const struct record_node *n) {
     return n->ip + n->sp;
 }
-int core_record_ip_compare(struct record_node *ln, struct record_node *rn);
+
+rbtree_compare_result core_record_ip_compare(struct record_node *ln, 
+    struct record_node *rn);
 struct record_node *core_record_node_allocate(struct record_class *rc, 
     size_t max_depth);
 int core_record_copy_ip(struct record_node *node, const void *ip[], size_t n);

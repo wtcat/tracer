@@ -2,6 +2,7 @@
  * Copyright 2022 wtcat
  */
 #include <stdio.h>
+#include <stdlib.h>
 
 void __assert_func(
     const char* file,
@@ -16,4 +17,5 @@ void __assert_func(
         (func) ? ", function: " : "",
         (func) ? func : ""
     );
+    exit(1);
 }

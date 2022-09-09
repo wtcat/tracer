@@ -66,7 +66,7 @@ struct path_class {
 
 struct mem_record_node {
     struct record_node base;
-    RBTree_Node rbnode;
+    rbtree_node rbnode;
     union {
         struct list_head head;
         struct list_head node;
@@ -84,8 +84,8 @@ static const char mdump_info[] = {
     "******************************************************\n"
 };
 
-static RBTree_Compare_result sum_compare(const RBTree_Node *a,
-    const RBTree_Node *b) {
+static rbtree_compare_result sum_compare(const rbtree_node *a,
+    const rbtree_node *b) {
     ASSERT_TRUE(a != NULL);
     ASSERT_TRUE(b != NULL);
     struct mem_record_node *p1 = CONTAINER_OF(a, struct mem_record_node, rbnode);
@@ -93,15 +93,15 @@ static RBTree_Compare_result sum_compare(const RBTree_Node *a,
     return core_record_ip_compare(&p1->base, &p2->base);
 }
 
-static RBTree_Compare_result ptr_compare(const RBTree_Node *a,
-    const RBTree_Node *b) {
+static rbtree_compare_result ptr_compare(const rbtree_node *a,
+    const rbtree_node *b) {
     struct mem_record_node *p1 = CONTAINER_OF(a, struct mem_record_node, base.node);
     struct mem_record_node *p2 = CONTAINER_OF(b, struct mem_record_node, base.node);
     return (long)p1->ptr - (long)p2->ptr;
 }
 
 static struct mem_record_node *mem_find(struct record_class *rc, void *ptr) {
-    RBTree_Node *found;
+    rbtree_node *found;
     if (rc == NULL || ptr == NULL)
         return NULL;
     struct mem_record_node mrn;
@@ -113,7 +113,7 @@ static struct mem_record_node *mem_find(struct record_class *rc, void *ptr) {
 }
 
 static int mem_instert(struct path_class *path, struct mem_record_node *node, bool reset) {
-    RBTree_Node *found;
+    rbtree_node *found;
     if (path == NULL || node == NULL)
         return -EINVAL;
     found = rbtree_insert(&path->tree.root, &node->rbnode, path->tree.compare, true);
@@ -184,11 +184,10 @@ static bool iterator(struct record_node *n, void *u) {
     return true;
 }
 
-static bool sorted_iterator(const RBTree_Node *node, RBTree_Direction dir, void *arg) {
+static bool sorted_iterator(const rbtree_node *node, void *arg) {
     struct iter_argument *ia = (struct iter_argument *)arg;
     const struct printer *vio = ia->vio;
     size_t sum = 0;
-    (void) dir;
     struct list_head *pos;
     struct mem_record_node *hnode = CONTAINER_OF(node, struct mem_record_node, rbnode);
     sum += hnode->size;
@@ -227,6 +226,20 @@ static struct backtrace_callbacks callbacks = {
     .end = _backtrace_end
 };
 
+int mem_node_create(struct path_class *path, void *ptr, size_t size) {
+    struct mem_record_node *mnode;
+    mnode = (struct mem_record_node *)core_record_node_allocate(&path->base, 
+        path->path_size + backtrace_context_size(&path->tracer));
+    if (mnode) {
+        mnode->ptr = ptr;
+        mnode->size = size;
+        mnode->context = mnode + 1;
+        path->base.pnode = mnode;
+        return 0;
+    }
+    return -ENOMEM;
+}
+
 void mem_tracer_set_path_length(void *context, size_t maxlen) {
     ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
@@ -243,15 +256,10 @@ void *mem_tracer_alloc(void *context, size_t size) {
     MUTEX_LOCK(path);
     void *ptr = memory_allocate(path->base.allocator, size);
     if (ptr) {
-        struct mem_record_node *mrn;
-        mrn = (struct mem_record_node *)core_record_node_allocate(&path->base, 
-            path->path_size + backtrace_context_size(&path->tracer));
-        mrn->rbnode.color = RBT_RED;
-        mrn->ptr = ptr;
-        mrn->size = size;
-        mrn->context = mrn + 1;
-        path->base.pnode = mrn;
+        int ret = mem_node_create(path, ptr, size);
+        ASSERT_TRUE(ret == 0);
         do_backtrace(&path->tracer, &callbacks, path);
+        (void) ret;
     }
     MUTEX_UNLOCK(path);
     return ptr;
@@ -267,8 +275,6 @@ void mem_tracer_free(void *context, void *ptr) {
     if (rn) {
         memory_free(path->base.allocator, ptr);
         if (!_RBTree_Is_node_off_tree(&rn->rbnode)) {
-            ASSERT_TRUE(rn->head.next != NULL);
-            ASSERT_TRUE(rn->head.prev != NULL);
             rbtree_extract(&path->tree.root, &rn->rbnode);
             if (!list_empty(&rn->head)) {
                 struct mem_record_node *new_node;
@@ -298,7 +304,7 @@ void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type t
     if (type == MEM_SORTED_DUMP) {
         ia.vio = vio;
         ia.path = path;
-        rbtree_iterate(&path->tree.root, RBT_RIGHT, sorted_iterator, &ia);
+        rbtree_iterate(&path->tree.root, sorted_iterator, &ia);
         goto _print;
     }
     if (type == MEM_SEQUEUE_DUMP) {
