@@ -261,9 +261,9 @@ void mem_tracer_free(void *context, void *ptr) {
     struct mem_record_node *rn;
     assert(ptr != NULL);
     MUTEX_LOCK(path);
-    memory_free(path->base.allocator, ptr);
     rn = mem_find(&path->base, ptr);
     if (rn) {
+        memory_free(path->base.allocator, ptr);
         if (!_RBTree_Is_node_off_tree(&rn->rbnode)) {
             assert(rn->head.next != NULL);
             assert(rn->head.prev != NULL);
@@ -279,6 +279,8 @@ void mem_tracer_free(void *context, void *ptr) {
             list_del(&rn->node);
         }
         core_record_del(&path->base, &rn->base);
+    } else {
+        printf("Error***: Free invalid pointer (%p)\n", ptr);
     }
     MUTEX_UNLOCK(path);
 }
