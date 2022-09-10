@@ -20,22 +20,28 @@ extern "C"{
 struct printer;
 struct mem_allocator;
 
-enum mdump_type {
-    MEM_SORTED_DUMP,
-    MEM_SEQUEUE_DUMP
+/* Tracer Options */
+#define MEM_CHECK_OVERFLOW 0x1
+#define MEM_CHECK_INVALID  0x2
+
+enum mem_dumper {
+    MEM_DUMP_SORTED,
+    MEM_DUMP_SEQUENCE
 };
 
+size_t mem_tracer_get_used(void* context);
 void *mem_tracer_alloc(void *context, size_t size);
 void mem_tracer_free(void *context, void *ptr);
-int mem_tracer_set_allocator(void *context, struct mem_allocator *alloc);
-void mem_tracer_dump(void *context, const struct printer *vio, enum mdump_type type);
-void mem_tracer_destory(void *context);
+void mem_tracer_dump(void *context, enum mem_dumper type);
 void mem_tracer_set_path_length(void *context, size_t maxlen);
 void mem_tracer_set_path_limits(void *context, int min, int max);
+void mem_tracer_set_printer(void *context, const struct printer *vio);
 int mem_tracer_set_path_separator(void *context, const char *separator);
-void mem_tracer_init(void *context);
+void mem_tracer_init(void *context, struct mem_allocator *alloc, 
+    unsigned int options);
 void mem_tracer_deinit(void* context);
-size_t mem_tracer_get_used(void* context);
+void mem_tracer_destory(void *context);
+
 
 #ifdef __cplusplus
 }

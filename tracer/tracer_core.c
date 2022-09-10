@@ -38,7 +38,7 @@ struct record_node *core_record_node_allocate(struct record_class *rc,
     ASSERT_TRUE(rc->node_size >= sizeof(struct record_node));
     size_t node_size = (rc->node_size + (sizeof(void *) - 1)) & ~(sizeof(void *) - 1);
     struct record_node *rn = memory_allocate(rc->allocator, 
-        node_size + max_depth * sizeof(void *));
+        node_size + max_depth * sizeof(void *), NULL);
     if (rn != NULL) {
         memset(rn, 0, rc->node_size);
         rbtree_set_off_tree(&rn->node);
@@ -83,7 +83,7 @@ int core_record_del(struct record_class *rc, struct record_node *node) {
         return -EINVAL;
     rbtree_extract(&rc->tree.root, &node->node);
     list_del(&node->link);
-    memory_free(rc->allocator, node);
+    memory_free(rc->allocator, node, NULL);
     return 0;
 }
 
@@ -92,7 +92,7 @@ void core_record_destroy(struct record_class *rc) {
     list_for_each_safe(pos, next, &rc->head) {
         struct record_node *rn = CONTAINER_OF(pos, struct record_node, link);
         list_del(pos);
-        memory_free(rc->allocator, rn);
+        memory_free(rc->allocator, rn, NULL);
     }
 }
 

@@ -34,8 +34,9 @@ static void *ptr_table[40];
 static int ptr_index;
 size_t used_size;
 
-static void *mem_alloc(struct mem_allocator *m, size_t size) {
+static void *mem_alloc(struct mem_allocator *m, size_t size, void *user) {
     (void) m;
+    (void) user;
     size_t *ptr = malloc(size + sizeof(size));
     if (ptr) {
         used_size += size;
@@ -45,8 +46,9 @@ static void *mem_alloc(struct mem_allocator *m, size_t size) {
     return NULL;
 }
 
-static void mem_free(struct mem_allocator *m, void *ptr) {
+static void mem_free(struct mem_allocator *m, void *ptr, void *user) {
     (void) m;
+    (void) user;
     size_t *p = (size_t *)ptr;
     p--;
     used_size -= *p;
@@ -86,10 +88,8 @@ TEST_FUN(func_5) {
 }
 
 int main(int argc, char *argv[]) {
-    struct printer cout;
-    printf_printer_init(&cout);
-    mem_tracer_init(&mtrace_context);
-    mem_tracer_set_allocator(&mtrace_context, &allocator);
+    mem_tracer_init(&mtrace_context, &allocator, 
+        MEM_CHECK_OVERFLOW | MEM_CHECK_INVALID);
 #if defined(__linux__)
     mem_tracer_set_path_separator(&mtrace_context, "\n\t->");
 #else
@@ -97,12 +97,12 @@ int main(int argc, char *argv[]) {
 #endif
 
     func_5();
-    mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
-    mem_tracer_dump(&mtrace_context, &cout, MEM_SORTED_DUMP);
+    mem_tracer_dump(&mtrace_context, MEM_DUMP_SORTED);
+    mem_tracer_dump(&mtrace_context, MEM_DUMP_SEQUENCE);
 
     printf("**Memory Monitor-1: %" PRIu64 "\n", used_size);
     TEST_FREE();
-    mem_tracer_dump(&mtrace_context, &cout, MEM_SEQUEUE_DUMP);
+    mem_tracer_dump(&mtrace_context, MEM_DUMP_SEQUENCE);
     mem_tracer_deinit(&mtrace_context);
     printf("**Memory Monitor-2: %" PRIu64 "\n", used_size);
     return 0;

@@ -11,17 +11,19 @@ extern "C"{
 #endif
 
 struct mem_allocator {
-    void *(*allocate)(struct mem_allocator *m, size_t size);
-    void (*free)(struct mem_allocator *m, void *ptr);
+    void *(*allocate)(struct mem_allocator *m, size_t size, void *user);
+    void (*free)(struct mem_allocator *m, void *ptr, void *user);
     void *context;
 };
 
-static inline void *memory_allocate(struct mem_allocator *m, size_t size) {
-    return m->allocate(m, size);
+static inline void *memory_allocate(struct mem_allocator *m, 
+    size_t size, void *user) {
+    return m->allocate(m, size, user);
 }
 
-static inline void memory_free(struct mem_allocator *m, void *ptr) {
-    m->free(m, ptr);
+static inline void memory_free(struct mem_allocator *m, 
+    void *ptr, void *user) {
+    m->free(m, ptr, user);
 }
 
 #ifdef __cplusplus

@@ -47,6 +47,11 @@ static inline void *core_record_ip(const struct record_node *n) {
     return n->ip + n->sp;
 }
 
+static inline struct record_node *core_record_lessthen_node(struct record_node *n) {
+    rbtree_node *node = rbtree_left(&n->node);
+    return CONTAINER_OF(node, struct record_node, node);
+}
+
 rbtree_compare_result core_record_ip_compare(struct record_node *ln, 
     struct record_node *rn);
 struct record_node *core_record_node_allocate(struct record_class *rc, 
