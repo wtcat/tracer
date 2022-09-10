@@ -150,7 +150,7 @@ static inline void mem_node_insert(struct path_class *path, struct mem_record_no
 static void mem_path_print(struct path_class *path, struct mem_record_node *node, 
     const char *separator) {
     const struct printer *vio = path->vio;
-    virt_print(vio, "<Path>: ");
+    virt_print(vio, "%s", "<Path>: ");
     core_record_print_path(&path->base, &node->base, vio, path->separator);
     virt_print(vio, "\n");
 }
@@ -173,7 +173,7 @@ static bool iterator(struct record_node *n, void *u) {
     ia->msize += mrn->size;
     if (vio != NULL) {
         mem_path_print(ia->path, mrn, ia->path->separator);
-        virt_print(vio, "\tMemory: 0x%p Size: %ld\n",
+        virt_print(vio, "\tMemory: %p Size: %ld\n",
             mrn->ptr, mrn->size);
     }
     return true;
@@ -181,21 +181,29 @@ static bool iterator(struct record_node *n, void *u) {
 
 static bool sorted_iterator(const rbtree_node *node, void *arg) {
     struct mem_argument *ia = (struct mem_argument *)arg;
-    const struct printer *vio = ia->path->vio;
-    size_t sum = 0;
+    struct path_class *path = ia->path;
+    const struct printer *vio = path->vio;
+    size_t sum = 0, cnt = 1;
+
     struct list_head *pos;
     struct mem_record_node *hnode = CONTAINER_OF(node, struct mem_record_node, rbnode);
     sum += hnode->size;
-    mem_path_print(ia->path, hnode, ia->path->separator);
-    virt_print(vio, "\tMemory: 0x%p Size: %ld\n", 
-        hnode->ptr, hnode->size);
+    
+    /* Calculate size and count */
     list_for_each(pos, &hnode->head) {
         struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);
         sum += p->size;
-        virt_print(vio, "\tMemory: 0x%p Size: %ld\n", p->ptr, p->size);
+        cnt++;
     }
-    virt_print(vio, " \tMemory Used: %u B (%.2f KB)\n",  
-        sum, (float)sum / 1024);
+    virt_print(vio, "\n<Path>@ {Count: %-8d Used: %uB (%.2fKB)}:",
+        cnt, sum, (float)sum / 1024);
+    core_record_print_path(&path->base, &hnode->base, vio, path->separator);
+    virt_print(vio, "\n\tMemory: 0x%p Size: %ld\n", 
+        hnode->ptr, hnode->size);
+    list_for_each(pos, &hnode->head) {
+        struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);
+        virt_print(vio, "\tMemory: %p Size: %ld\n", p->ptr, p->size);
+    }
     ia->msize += sum;
     return false;
 }
