@@ -146,7 +146,7 @@ static int mem_instert(struct path_class *path, struct mem_record_node *node, bo
 
 static void _backtrace_begin(void *user) {
     struct path_class *path = (struct path_class *)user;
-    struct mem_record_node *node = (struct mem_record_node *)&path->base.pnode;
+    struct mem_record_node *node = (struct mem_record_node *)path->base.pnode;
     backtrace_begin(&path->tracer, node->context, false);
 }
 
