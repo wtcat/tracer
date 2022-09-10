@@ -11,10 +11,13 @@
 #include "base/rb.h"
 #include "base/list.h"
 #include "base/allocator.h"
+#include "base/backtrace.h"
 
 #ifdef __cplusplus
 extern "C"{
 #endif
+
+struct printer;
 
 struct record_tree {
     rbtree_control root;
@@ -25,6 +28,8 @@ struct record_node {
     struct list_head link;
     rbtree_node node;
     uintptr_t ipkey;
+    /* For tracer */
+    void *context;
     size_t max_depth;
     size_t sp;
     void **ip;
@@ -33,6 +38,7 @@ struct record_node {
 struct record_class {
     struct record_tree tree;
     struct list_head head;
+    struct backtrace_class tracer;
     struct mem_allocator *allocator;
     size_t node_size;
     void *pnode; /* for record_node */
@@ -56,7 +62,9 @@ rbtree_compare_result core_record_ip_compare(struct record_node *ln,
     struct record_node *rn);
 struct record_node *core_record_node_allocate(struct record_class *rc, 
     size_t max_depth);
-int core_record_copy_ip(struct record_node *node, const void *ip[], size_t n);
+void core_record_print_path(struct record_class *rc, struct record_node *node, 
+    const struct printer *vio, const char *separator);
+void core_record_backtrace(struct record_class *rc, struct record_node *node);
 int core_record_add(struct record_class *rc, struct record_node *node);
 int core_record_del(struct record_class *rc, struct record_node *node);
 void core_record_destroy(struct record_class *rc);

@@ -10,7 +10,7 @@ void __assert_func(
     const char* func,
     const char* failedexpr
 ) {
-    printf("assertion \"%s\" failed: file \"%s\", line %d%s%s\n",
+    printf("Assertion \"%s\" failed: file \"%s\", line %d%s%s\n",
         failedexpr,
         file,
         line,

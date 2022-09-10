@@ -8,7 +8,7 @@
 
 #include "base/printer.h"
 #include "base/allocator.h"
-#include "tracer/backtrace.h"
+#include "base/backtrace.h"
 #include "tracer/mem_tracer.h"
 
 #define PTR_TABLE_SIZE 50

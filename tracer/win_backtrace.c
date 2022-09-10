@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include "base/utils.h"
-#include "tracer/backtrace.h"
+#include "base/backtrace.h"
 
 #define SW_IMPL
 #include "win/stackwalker.h"

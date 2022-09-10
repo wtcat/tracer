@@ -15,9 +15,9 @@
 #include "base/printer.h"
 #include "base/allocator.h"
 #include "base/assert.h"
+#include "base/backtrace.h"
 #include "tracer/tracer_core.h"
 #include "tracer/mem_tracer.h"
-#include "tracer/backtrace.h"
 
 
 /* For thread safe */
@@ -73,7 +73,6 @@ struct path_class {
 #define PATH_SEPARATOR_SIZE 16
     struct record_class base;
     struct record_tree tree;
-    struct backtrace_class tracer;
     struct mem_allocator *allocator;
     const struct printer *vio;
     MUTEX_LOCK_DECLARE(lock);
@@ -91,7 +90,6 @@ struct mem_record_node {
     };
     void  *ptr;
     size_t size;
-    void *context; //For path_class::tracer
 };
 
 _Static_assert(sizeof(struct path_class) <= MTRACER_INST_SIZE, "Over size");
@@ -144,49 +142,16 @@ static int mem_instert(struct path_class *path, struct mem_record_node *node, bo
     return 0;
 }
 
-static void _backtrace_begin(void *user) {
-    struct path_class *path = (struct path_class *)user;
-    struct mem_record_node *node = (struct mem_record_node *)path->base.pnode;
-    backtrace_begin(&path->tracer, node->context, false);
-}
-
-static void _backtrace_entry(struct backtrace_entry *entry, void *user) {
-    struct path_class *path = (struct path_class *)user;
-    struct record_class *rc = &path->base;
-    struct mem_record_node *node = (struct mem_record_node *)rc->pnode;
-    core_record_copy_ip(&node->base, (const void **)entry->ip, entry->n);
-}
-
-static void _backtrace_end(void *user) {
-    struct path_class *path = (struct path_class *)user;
-    struct record_class *rc = &path->base;
-    struct mem_record_node *mrn = (struct mem_record_node *)rc->pnode; 
-    backtrace_end(&path->tracer, mrn->context, false);
-    if (mrn->ptr) {
-        core_record_add(rc, &mrn->base);
+static inline void mem_node_insert(struct path_class *path, struct mem_record_node *mrn) {
+        core_record_add(&path->base, &mrn->base);
         mem_instert(path, mrn, true);
-    }
 }
 
 static void mem_path_print(struct path_class *path, struct mem_record_node *node, 
     const char *separator) {
     const struct printer *vio = path->vio;
-    size_t n = core_record_ip_size(&node->base);
-    void **ip = core_record_ip(&node->base);
-    char str[256];
-
     virt_print(vio, "<Path>: ");
-    backtrace_begin(&path->tracer, node->context, true);
-    for (size_t i = 0; i < n; i++) {
-        int ret = backtrace_addr2symbol(&path->tracer, ip[i], str, 
-            sizeof(str), node->context);
-        if (ret) {
-            virt_print(vio, "%s0x%p", separator, ip[i]);
-            continue;
-        }
-        virt_print(vio, "%s%s", separator, str);
-    }
-    backtrace_end(&path->tracer, node->context, true);
+    core_record_print_path(&path->base, &node->base, vio, path->separator);
     virt_print(vio, "\n");
 }
 
@@ -301,29 +266,22 @@ static struct mem_allocator protmem_allocator = {
     .context = NULL
 };
 
-static struct backtrace_callbacks callbacks = {
-    .begin = _backtrace_begin,
-    .callback = _backtrace_entry,
-    .end = _backtrace_end
-};
-
 static inline struct mem_record_node *mem_node_alloc(struct path_class *path, 
     size_t path_size) {
     return (struct mem_record_node *)core_record_node_allocate(&path->base, 
-        path_size + backtrace_context_size(&path->tracer));
+        path_size);
 }
 
-static int mem_node_create(struct path_class *path, void *ptr, size_t size) {
+static struct mem_record_node *mem_node_create(struct path_class *path, void *ptr, 
+    size_t size) {
     struct mem_record_node *mnode = mem_node_alloc(path, path->path_size);
     if (mnode) {
         rbtree_set_off_tree(&mnode->rbnode);
         mnode->ptr = ptr;
         mnode->size = size;
-        mnode->context = mnode + 1;
-        path->base.pnode = mnode;
-        return 0;
+        return mnode;
     }
-    return -ENOMEM;
+    return NULL;
 }
 
 static int mem_node_delete(struct path_class *path, struct mem_record_node *rn) {
@@ -356,13 +314,14 @@ void mem_tracer_set_path_length(void *context, size_t maxlen) {
 void *mem_tracer_alloc(void *context, size_t size) {
     ASSERT_TRUE(context != NULL);
     struct path_class *path = (struct path_class *)context;
+    struct mem_record_node *mnode;
     MUTEX_LOCK(path);
     void *ptr = memory_allocate(path->allocator, size, NULL);
     if (ptr) {
-        int ret = mem_node_create(path, ptr, size);
-        ASSERT_TRUE(ret == 0);
-        do_backtrace(&path->tracer, &callbacks, path);
-        (void) ret;
+        mnode = mem_node_create(path, ptr, size);
+        ASSERT_TRUE(mnode != NULL);
+        core_record_backtrace(&path->base, &mnode->base);
+        mem_node_insert(path, mnode);
     }
     MUTEX_UNLOCK(path);
     return ptr;
@@ -426,7 +385,7 @@ void mem_tracer_set_path_limits(void *context, int min, int max) {
     ASSERT_TRUE(context != NULL);
     struct path_class* path = (struct path_class*)context;
     MUTEX_LOCK(path);
-    backtrace_set_limits(&path->tracer, min, max);
+    backtrace_set_limits(&path->base.tracer, min, max);
     MUTEX_UNLOCK(path);
 }
 
@@ -476,7 +435,7 @@ void mem_tracer_init(void *context, struct mem_allocator *alloc,
     path->options = options;
     path->vio = &mem_printer;
     printf_printer_init(&mem_printer);
-    backtrace_init(FAST_BACKTRACE, &path->tracer);
+    backtrace_init(FAST_BACKTRACE, &path->base.tracer);
     MUTEX_UNLOCK(path);
 }
 

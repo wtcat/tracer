@@ -10,7 +10,7 @@
 extern "C"{
 #endif
 
-#if defined(__GNUC__) || defined(Clang)
+#if defined(__GNUC__) || defined(__clang__)
 #define __unused __attribute__((unsed))
 #else
 #define __unused
