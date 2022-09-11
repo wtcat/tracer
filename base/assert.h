@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 #ifdef NDEBUG
-#define assert(_expr) ((void)0)
+#define ASSERT_TRUE(_expr) ((void)0)
 
 #else //!NDEBUG
 

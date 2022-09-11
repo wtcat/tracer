@@ -205,7 +205,7 @@ static bool sorted_iterator(const rbtree_node *node, void *arg) {
         hnode->ptr, hnode->size);
     list_for_each(pos, &hnode->head) {
         struct mem_record_node *p = CONTAINER_OF(pos, struct mem_record_node, node);
-        virt_print(vio, "\tMemory: %p Size: %ld\n", p->ptr, p->size);
+        virt_print(vio, "\tMemory: 0x%p Size: %ld\n", p->ptr, p->size);
     }
     ia->msize += sum;
     ia->mcount += cnt;
