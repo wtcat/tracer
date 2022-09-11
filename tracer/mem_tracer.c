@@ -67,6 +67,8 @@ struct mem_argument {
         struct mem_record_node *mnode;
         size_t msize;
     };
+    size_t mcount;
+    bool dis_print;
 };
 
 struct path_class {
@@ -168,10 +170,11 @@ static bool free_iterator(struct record_node *n, void *u) {
 
 static bool iterator(struct record_node *n, void *u) {
     struct mem_argument *ia = (struct mem_argument *)u;
-    const struct printer *vio = ia->path->vio;
     struct mem_record_node *mrn = CONTAINER_OF(n, struct mem_record_node, base);
     ia->msize += mrn->size;
-    if (vio != NULL) {
+    ia->mcount++;
+    if (!ia->dis_print) {
+        const struct printer *vio = ia->path->vio;
         mem_path_print(ia->path, mrn, ia->path->separator);
         virt_print(vio, "\tMemory: %p Size: %ld\n",
             mrn->ptr, mrn->size);
@@ -205,6 +208,7 @@ static bool sorted_iterator(const rbtree_node *node, void *arg) {
         virt_print(vio, "\tMemory: %p Size: %ld\n", p->ptr, p->size);
     }
     ia->msize += sum;
+    ia->mcount += cnt;
     return false;
 }
 
@@ -371,8 +375,8 @@ void mem_tracer_dump(void *context, enum mem_dumper type) {
     }
 _print:
     time(&now);
-    virt_print(vio, "\nTotal Used: %u B (%.2f KB)\n", 
-        ia.msize, (float)ia.msize/1024);
+    virt_print(vio, "\nTotal Used: %u B (%.2f KB) Blocks: %u\n", 
+        ia.msize, (float)ia.msize/1024, ia.mcount);
     virt_print(vio, "Time: %s\n\n", asctime(localtime(&now)));
     MUTEX_UNLOCK(path);
 }
@@ -407,13 +411,16 @@ void mem_tracer_set_printer(void *context, const struct printer *vio) {
     }
 }
 
-size_t mem_tracer_get_used(void* context) {
+size_t mem_tracer_get_used(void* context, size_t *nblk) {
     ASSERT_TRUE(context != NULL);
     struct path_class* path = (struct path_class*)context;
     struct mem_argument ia = {0};
     MUTEX_LOCK(path);
     ia.path = path;
+    ia.dis_print = true;
     core_record_visitor(&path->base, iterator, &ia);
+    if (nblk)
+        *nblk = ia.mcount;
     MUTEX_UNLOCK(path);
     return ia.msize;
 }

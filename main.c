@@ -88,7 +88,7 @@ TEST_FUN(func_5) {
 }
 
 int main(int argc, char *argv[]) {
-    mem_tracer_init(&mtrace_context, &allocator, 
+    mem_tracer_init(mtrace_context, &allocator, 
         MEM_CHECK_OVERFLOW | MEM_CHECK_INVALID);
 #if defined(__linux__)
     mem_tracer_set_path_separator(&mtrace_context, "\n\t->");
@@ -97,13 +97,16 @@ int main(int argc, char *argv[]) {
 #endif
 
     func_5();
-    mem_tracer_dump(&mtrace_context, MEM_DUMP_SORTED);
-    mem_tracer_dump(&mtrace_context, MEM_DUMP_SEQUENCE);
+    mem_tracer_dump(mtrace_context, MEM_DUMP_SORTED);
+    mem_tracer_dump(mtrace_context, MEM_DUMP_SEQUENCE);
+    size_t count = 0;
+    size_t allc_size = mem_tracer_get_used(mtrace_context, &count);
+    printf("Allocate Size: %lu Block Count: %lu\n", allc_size, count);
 
     printf("**Memory Monitor-1: %" PRIu64 "\n", used_size);
     TEST_FREE();
-    mem_tracer_dump(&mtrace_context, MEM_DUMP_SEQUENCE);
-    mem_tracer_deinit(&mtrace_context);
+    mem_tracer_dump(mtrace_context, MEM_DUMP_SEQUENCE);
+    mem_tracer_deinit(mtrace_context);
     printf("**Memory Monitor-2: %" PRIu64 "\n", used_size);
     return 0;
 }

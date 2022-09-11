@@ -29,7 +29,7 @@ enum mem_dumper {
     MEM_DUMP_SEQUENCE
 };
 
-size_t mem_tracer_get_used(void* context);
+size_t mem_tracer_get_used(void* context, size_t *nblk);
 void *mem_tracer_alloc(void *context, size_t size);
 void mem_tracer_free(void *context, void *ptr);
 void mem_tracer_dump(void *context, enum mem_dumper type);
