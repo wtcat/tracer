@@ -11,7 +11,6 @@ extern "C"{
 #endif
 
 #define MTRACER_INST_SIZE 256
-
 #define MTRACER_DEFINE(name) \
     unsigned long name[(MTRACER_INST_SIZE + sizeof(long) - 1) / sizeof(long)]
 #define MTRACER_DECLARE(name) \

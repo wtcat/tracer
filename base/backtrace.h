@@ -23,10 +23,7 @@ enum bracktrace_type {
 #ifndef __defined_backtrace_entry_t__
 #define __defined_backtrace_entry_t__
 struct backtrace_entry {
-    const char *symbol;
-    const char *filename;
-    unsigned long pc;
-    int line;
+    uintptr_t pc;
     void **ip;
     size_t n;
 };

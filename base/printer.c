@@ -2,7 +2,6 @@
  * Copyright 2022 wtcat
  */
 #include <stdio.h>
-
 #include "base/printer.h"
 
 static int printf_plugin(void *context, const char *format, va_list ap) {

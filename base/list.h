@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "base/utils.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
