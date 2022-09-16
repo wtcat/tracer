@@ -5,10 +5,17 @@
 #define BASE_PRINTER_H_
 
 #include <stdarg.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C"{
 #endif
+
+struct sprintf_context {
+    size_t size;
+    size_t ptr;
+    char buffer[];
+};
 
 struct printer {
     int (*printer)(void *context, const char *fmt, va_list ap_list);
@@ -26,6 +33,11 @@ static inline int virt_print(const struct printer *printer,
 
 void printf_printer_init(struct printer *printer);
 void fprintf_printer_init(struct printer *printer, void *fp);
+void sprintf_printer_init(struct printer *printer, void *sctx);
+
+static inline void sprint_context_reset(struct sprintf_context *sctx) {
+    sctx->ptr = 0;
+}
 
 #ifdef __cplusplus
 }

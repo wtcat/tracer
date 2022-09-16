@@ -15,6 +15,15 @@ extern "C"{
 
 #define BACKTRACE_MAX_LIMIT 64
 
+
+struct trace_path {
+#define MAX_PATH_DEPTH(n) (sizeof(void *) * (n+1))
+    void *context;
+    size_t max_depth;
+    size_t sp;
+    void **ip;
+};
+
 enum bracktrace_type {
     FAST_BACKTRACE,
     UNWIND_BACKTRACE
@@ -40,9 +49,10 @@ struct backtrace_class {
     void (*backtrace)(struct backtrace_class *cls, 
         struct backtrace_callbacks *cb, void *user);
     void (*begin)(struct backtrace_class *cls, void *context, bool to_symbol);
-    int (*sym_entry)(struct backtrace_class *cls, 
+    ssize_t (*sym_entry)(struct backtrace_class *cls, 
         void *ip, char *sym, size_t max, void *context);
     void (*end)(struct backtrace_class *cls, void *context, bool to_symbol);
+    void *context;
     int min_limit;
     int max_limit;
     size_t ctx_size;

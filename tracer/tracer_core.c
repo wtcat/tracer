@@ -121,7 +121,7 @@ int core_record_add(struct record_class *rc, struct record_node *node) {
     ASSERT_TRUE(found == NULL);
     if (!found) {
         node->ipkey = ipkey_generate(0, (void*)&node->ip[node->sp], 
-            core_record_ip_size(node));
+            core_record_ip_size(node) * sizeof(void *));
         list_add_tail(&node->link, &rc->head);
         return 0;
     }
