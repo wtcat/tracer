@@ -144,11 +144,6 @@ static int mem_instert(struct path_class *path, struct mem_record_node *node, bo
     return 0;
 }
 
-static inline void mem_node_insert(struct path_class *path, struct mem_record_node *mrn) {
-        core_record_add(&path->base, &mrn->base);
-        mem_instert(path, mrn, true);
-}
-
 static void mem_path_print(struct path_class *path, struct mem_record_node *node, 
     const char *separator) {
     const struct printer *vio = path->vio;
@@ -332,8 +327,13 @@ void *mem_tracer_alloc(void *context, size_t size) {
     if (ptr) {
         mnode = mem_node_create(path, ptr, size);
         ASSERT_TRUE(mnode != NULL);
-        core_record_backtrace(&path->base, &mnode->base);
-        mem_node_insert(path, mnode);
+        if (!core_record_backtrace(&path->base, &mnode->base)) {
+            mem_instert(path, mnode, true);
+        } else {
+            memory_free(path->allocator, ptr, NULL);
+            ptr = NULL;
+        }
+            
     }
     MUTEX_UNLOCK(path);
     return ptr;
@@ -387,8 +387,7 @@ int mem_tracer_set_path_separator(void *context, const char *separator) {
     if (separator == NULL)
         return -EINVAL;
     MUTEX_LOCK(path);
-    memset(path->separator, 0, PATH_SEPARATOR_SIZE);
-    strncpy(path->separator, separator, PATH_SEPARATOR_SIZE-1);
+    backtrace_set_path_separator(&path->base.tracer, separator);
     MUTEX_UNLOCK(path);
     return 0;
 }
@@ -397,7 +396,7 @@ void mem_tracer_set_path_limits(void *context, int min, int max) {
     ASSERT_TRUE(context != NULL);
     struct path_class* path = (struct path_class*)context;
     MUTEX_LOCK(path);
-    backtrace_set_limits(&path->base.tracer, min, max);
+    backtrace_set_path_window(&path->base.tracer, min, max);
     MUTEX_UNLOCK(path);
 }
 

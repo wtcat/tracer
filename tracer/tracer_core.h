@@ -28,11 +28,9 @@ struct record_node {
     struct list_head link;
     rbtree_node node;
     uintptr_t ipkey;
+    struct ip_record ipr;
     /* For tracer */
     void *context;
-    size_t max_depth;
-    size_t sp;
-    void **ip;
 };
 
 struct record_class {
@@ -45,14 +43,6 @@ struct record_class {
     void *user;
 };
 
-static inline size_t core_record_ip_size(const struct record_node *n) {
-    return n->max_depth - n->sp;
-}
-
-static inline void *core_record_ip(const struct record_node *n) {
-    return n->ip + n->sp;
-}
-
 static inline struct record_node *core_record_lessthen_node(struct record_node *n) {
     rbtree_node *node = rbtree_left(&n->node);
     return CONTAINER_OF(node, struct record_node, node);
@@ -64,7 +54,7 @@ struct record_node *core_record_node_allocate(struct record_class *rc,
     size_t max_depth);
 void core_record_print_path(struct record_class *rc, struct record_node *node, 
     const struct printer *vio, const char *separator);
-void core_record_backtrace(struct record_class *rc, struct record_node *node);
+int core_record_backtrace(struct record_class *rc, struct record_node *node);
 int core_record_add(struct record_class *rc, struct record_node *node);
 int core_record_del(struct record_class *rc, struct record_node *node);
 void core_record_destroy(struct record_class *rc);

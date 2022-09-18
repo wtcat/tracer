@@ -6,77 +6,81 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "base/assert.h"
 #include "base/utils.h"
 #include "base/backtrace.h"
-#include "base/printer.h"
 
-
-static inline size_t core_record_ip_size(const struct trace_path *n) {
-    return n->max_depth - n->sp;
+static inline void user_backtrace_begin(struct backtrace_callbacks *cb, 
+    struct backtrace_class *cls, void *user) {
+    if (cb->begin)
+        cb->begin(cls, user);
 }
 
-static inline void *core_record_ip(const struct trace_path *n) {
-    return n->ip + n->sp;
+static inline void user_backtrace_end(struct backtrace_callbacks *cb, 
+    struct backtrace_class *cls, void *user, int err) {
+    if (cb->end)
+        cb->end(cls, user, err);
 }
 
-static int trace_path_copy_ip(struct trace_path *node, const void *ip[], size_t n) {
-    if (node == NULL || ip == NULL)
+static inline ssize_t backtrace_addr2symbol(struct backtrace_class *cls, void *ip, 
+    char *buf, size_t maxlen) {
+    return cls->transform(cls, ip, buf, maxlen);
+}
+
+static inline int bactrace_symbol_init(struct backtrace_class *cls) {
+    if (cls->transform_prepare)
+        return cls->transform_prepare(cls);
+    return 0; 
+}
+
+static inline void bactrace_symbol_deinit(struct backtrace_class *cls) {
+    if (cls->transform_post)
+        cls->transform_post(cls);
+}
+
+int backtrace_set_path_window(struct backtrace_class *cls, 
+    int min_limit, int max_limit) {
+    if (cls == NULL)
         return -EINVAL;
-    size_t size = MIN(node->sp, n);
-    size_t i = 0, sp = node->sp;
-    while (size > 0) {
-        node->ip[sp - i - 1] = (void *)ip[i];
-        i++;
-        size--;
-    }
-    node->sp = sp - i;
+    if (!max_limit)
+        max_limit = BACKTRACE_MAX_LIMIT;
+    cls->min_limit = min_limit;
+    cls->max_limit = max_limit;
     return 0;
 }
 
-static void path_backtrace_begin(void *user) {
-    struct backtrace_class *tracer = (struct backtrace_class *)user;
-    struct trace_path *node = (struct trace_path *)tracer->context;
-    backtrace_begin(tracer, node->context, false);
+int backtrace_set_path_separator(struct backtrace_class *cls, const char *separator) {
+    ASSERT_TRUE(cls != NULL);
+    if (separator == NULL)
+        return -EINVAL;
+    memset(cls->separator, 0, BACKTRACE_SEPARATOR_SIZE);
+    strncpy(cls->separator, separator, BACKTRACE_SEPARATOR_SIZE-1);
+    return 0;
 }
 
-static void path_backtrace_entry(struct backtrace_entry *entry, void *user) {
-    struct backtrace_class *tracer = (struct backtrace_class *)user;
-    struct trace_path *node = (struct trace_path *)tracer->context;
-    trace_path_copy_ip(node, (const void **)entry->ip, entry->n);
+int backtrace_extract_path(struct backtrace_class *cls, 
+    struct backtrace_callbacks *cb, void *user) {
+    ASSERT_TRUE(cls != NULL);
+    ASSERT_TRUE(cb != NULL);
+    if (cb->callback == NULL)
+        return -EINVAL;
+    user_backtrace_begin(cb, cls, user);
+    int ret = do_backtrace(cls, cb, user);
+    user_backtrace_end(cb, cls, user, ret);
+    return ret;
 }
 
-static void path_backtrace_end(void *user) {
-    struct backtrace_class *tracer = (struct backtrace_class *)user;
-    struct trace_path *node = (struct trace_path *)tracer->context;
-    backtrace_end(tracer, node->context, false);
-}
-
-static struct backtrace_callbacks callbacks = {
-    .begin = path_backtrace_begin,
-    .callback = path_backtrace_entry,
-    .end = path_backtrace_end
-};
-
-void core_path_init(struct trace_path *path, 
-    void *buffer, size_t depth) {
-    path->max_depth = depth;
-    path->ip = (void **)buffer;
-    path->sp = depth;
-    path->context = path->ip;
-}
-
-void core_extract_path(struct backtrace_class *tracer, struct trace_path *path) {
-    tracer->context = path;
-    do_backtrace(tracer, &callbacks, tracer);
-}
-
-ssize_t core_transform_path(struct backtrace_class *tracer, struct trace_path *node, 
-    char *buffer, size_t maxlen, const char *separator) {
-    size_t n = core_record_ip_size(node);
-    void **ip = core_record_ip(node);
+ssize_t backtrace_transform_path(struct backtrace_class *cls, struct ip_array *ips, 
+    char *buffer, size_t maxlen) {
+    ASSERT_TRUE(cls != NULL);
+    if (ips == NULL || buffer == NULL)
+        return -EINVAL;
+    const char *separator = cls->separator;
+    size_t n = ips->n;
+    void **ip = ips->ip;
     size_t slen = strlen(separator);
     size_t remain = maxlen - 1;
-    size_t offset;
+    size_t offset, i;
     int splen;
     int ret;
 
@@ -84,13 +88,15 @@ ssize_t core_transform_path(struct backtrace_class *tracer, struct trace_path *n
         ret = -EINVAL;
         goto _end;
     }
+    ret = bactrace_symbol_init(cls);
+    if (ret)
+        goto _end;
     memcpy(buffer, separator, slen);
     offset = slen;
     remain -= slen;
-    backtrace_begin(tracer, node->context, true);
-    for (size_t i = 0; i < n && remain > 0; i++) {
-        int ret = backtrace_addr2symbol(tracer, ip[i], buffer+offset, 
-            remain, node->context);
+    for (i = 0; i < n && remain > 0; i++) {
+        int ret = backtrace_addr2symbol(cls, ip[i], buffer+offset, 
+            remain);
         if (ret > 0) {
             offset += ret;
             if (offset + slen >= maxlen) 
@@ -108,6 +114,6 @@ ssize_t core_transform_path(struct backtrace_class *tracer, struct trace_path *n
     buffer[offset] = '\0';
     ret = offset;
 _end:
-    backtrace_end(tracer, node->context, true);
+    bactrace_symbol_deinit(cls);
     return ret;
 }

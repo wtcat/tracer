@@ -4,4 +4,5 @@ target_sources(tracer
     rb.c
     printer.c
     assert.c
+    backtrace.c
 )
