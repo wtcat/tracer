@@ -7,11 +7,10 @@
 #include "base/utils.h"
 #include "base/backtrace.h"
 
-#include <windows.h>
-// #define SW_IMPL
-// #include "win/stackwalker.h"
+#define SW_IMPL
+#include "win/stackwalker.h"
 
-// #pragma comment (lib,"imagehlp.lib")
+#pragma comment (lib,"imagehlp.lib")
 
 struct win_context {
     HANDLE handle;

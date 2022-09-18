@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include <sys/types.h>
+#include "base/types.h"
 
 #ifdef __cplusplus
 extern "C"{

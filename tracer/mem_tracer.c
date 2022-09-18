@@ -193,7 +193,7 @@ static bool sorted_iterator(const rbtree_node *node, void *arg) {
         sum += p->size;
         cnt++;
     }
-    virt_print(vio, "\n<Path>@ {Count: %-8d Used: %uB (%.2fKB)}:",
+    virt_print(vio, "\n<Path>@ {Count: %-8d Used: %uB (%.2fKB)}:\n",
         cnt, sum, (float)sum / 1024);
     core_record_print_path(&path->base, &hnode->base, vio, path->separator);
     virt_print(vio, "\n\tMemory: 0x%p Size: %ld\n", 
