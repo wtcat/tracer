@@ -56,6 +56,7 @@ static int win_transform_prepare(struct backtrace_class *cls) {
 int backtrace_init(enum bracktrace_type type, struct backtrace_class *cls) {
     (void) type;
     static struct win_context win;
+    memset(cls, 0, sizeof(*cls));
     cls->backtrace = win_backtrace;
     cls->transform = win_symbol_transform;
     cls->transform_prepare = win_transform_prepare;
